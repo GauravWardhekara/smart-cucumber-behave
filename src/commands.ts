@@ -205,6 +205,18 @@ export function registerCommands(context: vscode.ExtensionContext): void {
       { name: "smartBehave.showLiveRun", fn: revealLiveRunPanel },
       { name: "behave.showLiveRun", fn: revealLiveRunPanel },
       { name: "behaveRunner.showLiveRun", fn: revealLiveRunPanel },
+      {
+        name: "smartBehave.formatCustomGherkin",
+        fn: async () => {
+          const editor = vscode.window.activeTextEditor;
+          if (!editor || !editor.document.fileName.endsWith(".feature")) {
+            void vscode.window.showInformationMessage("Please open a .feature file to format.");
+            return;
+          }
+          await vscode.commands.executeCommand("editor.action.formatDocument");
+          void vscode.window.showInformationMessage("Smart Cucumber-Behave: Feature formatted with custom indentation.");
+        },
+      },
     ];
 
     for (const cmd of commands) {

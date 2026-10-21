@@ -452,6 +452,11 @@
       {
         "command": "behaveRunner.debugScenario",
         "title": "Behave: Debug Scenario"
+      },
+      {
+        "command": "smartBehave.formatCustomGherkin",
+        "title": "Smart Cucumber-Behave: Format Feature with Custom Indentation",
+        "icon": "$(layout)"
       }
     ],
     "configuration": [
@@ -709,6 +714,86 @@
             "type": "array",
             "required": false,
             "default": []
+          }
+        }
+      },
+      {
+        "title": "Smart Cucumber-Behave: Gherkin Formatter",
+        "properties": {
+          "smartBehave.formatting.customIndent.enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable custom fine-grained Gherkin indentation per keyword (Feature, Scenario, Background, Given, When, Then, And, But)"
+          },
+          "smartBehave.formatting.indentCharacter": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "tab",
+              "spaces"
+            ],
+            "default": "auto",
+            "description": "Indentation character unit: 'tab' forces tabs ('\\t'), 'spaces' uses editor tabSize spaces, 'auto' respects VS Code editor settings"
+          },
+          "smartBehave.formatting.indent.feature": {
+            "type": "number",
+            "default": 0,
+            "description": "Indentation level (number of tabs/indents) for Feature: headers (e.g. 0 tabs = no tab)"
+          },
+          "smartBehave.formatting.indent.scenario": {
+            "type": "number",
+            "default": 1,
+            "description": "Indentation level for Scenario: and Scenario Outline: headers (e.g. 1 tab after Feature)"
+          },
+          "smartBehave.formatting.indent.background": {
+            "type": "number",
+            "default": 1,
+            "description": "Indentation level for Background: headers"
+          },
+          "smartBehave.formatting.indent.rule": {
+            "type": "number",
+            "default": 1,
+            "description": "Indentation level for Rule: headers"
+          },
+          "smartBehave.formatting.indent.examples": {
+            "type": "number",
+            "default": 2,
+            "description": "Indentation level for Examples: headers"
+          },
+          "smartBehave.formatting.indent.given": {
+            "type": "number",
+            "default": 2,
+            "description": "Indentation level for Given steps (e.g. 2 tabs = one more tab after Scenario)"
+          },
+          "smartBehave.formatting.indent.when": {
+            "type": "number",
+            "default": 2,
+            "description": "Indentation level for When steps"
+          },
+          "smartBehave.formatting.indent.then": {
+            "type": "number",
+            "default": 3,
+            "description": "Indentation level for Then steps (e.g. 3 tabs = one more tab after Given)"
+          },
+          "smartBehave.formatting.indent.and": {
+            "type": "number",
+            "default": 4,
+            "description": "Indentation level for And steps (e.g. 4 tabs = one more tab after Then)"
+          },
+          "smartBehave.formatting.indent.but": {
+            "type": "number",
+            "default": 4,
+            "description": "Indentation level for But steps"
+          },
+          "smartBehave.formatting.indent.star": {
+            "type": "number",
+            "default": 2,
+            "description": "Indentation level for * (wildcard) steps"
+          },
+          "smartBehave.formatting.relativeAnd": {
+            "type": "boolean",
+            "default": false,
+            "description": "If true, And/But steps are indented relative to the preceding step (+1 tab); if false, uses explicit and/but tab levels"
           }
         }
       }

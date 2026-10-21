@@ -309,4 +309,63 @@ const langIds = pkgData.contributes.languages.map((l: any) => l.id);
 assert(langIds.includes("cucumber"), "Contributes 'cucumber' language");
 assert(langIds.includes("behave"), "Contributes 'behave' language");
 
-console.log("\nALL VERIFICATION CHECKS PASSED!");
+// 15. Verify Custom Gherkin Formatter (Feature=0, Scenario=1, Background=1, Given=2, When=2, Then=3, And=4, But=4)
+const { formatGherkinDocument } = require("../src/core/featureFormat");
+const rawGherkin = `
+Feature: User Login
+Background: Setup
+Given the server is up
+Scenario: User logs in successfully
+Given the login page is open
+When the user submits credentials
+Then the dashboard is displayed
+And a welcome message appears
+But error banner is not visible
+`;
+
+const formattedGherkin = formatGherkinDocument(rawGherkin, {
+  insertSpaces: false,
+  tabSize: 4,
+  customIndent: {
+    enabled: true,
+    indentCharacter: "tab",
+    feature: 0,
+    scenario: 1,
+    background: 1,
+    given: 2,
+    when: 2,
+    then: 3,
+    and: 4,
+    but: 4,
+  }
+});
+
+const formattedLines = formattedGherkin.split(/\r?\n/).filter((l: string) => l.trim().length > 0);
+assert(formattedLines[0] === "Feature: User Login", "Feature has no tab (0 tabs)");
+assert(formattedLines[1] === "\tBackground: Setup", "Background has 1 tab");
+assert(formattedLines[2] === "\t\tGiven the server is up", "Background Given has 2 tabs");
+assert(formattedLines[3] === "\tScenario: User logs in successfully", "Scenario has 1 tab after Feature");
+assert(formattedLines[4] === "\t\tGiven the login page is open", "Given has 2 tabs (one more tab after Scenario)");
+assert(formattedLines[5] === "\t\tWhen the user submits credentials", "When has 2 tabs");
+assert(formattedLines[6] === "\t\t\tThen the dashboard is displayed", "Then has 3 tabs (one more tab after Given)");
+assert(formattedLines[7] === "\t\t\t\tAnd a welcome message appears", "And has 4 tabs (one more tab after Then)");
+assert(formattedLines[8] === "\t\t\t\tBut error banner is not visible", "But has 4 tabs");
+
+// 16. Verify Multi-Language Runtime Diagnostic Probing for all 8 supported languages
+const { probeAllLanguageRuntimes } = require("../src/utils/languageRuntimes");
+async function testRuntimes() {
+  const probedRuntimes = await probeAllLanguageRuntimes();
+  assert(probedRuntimes.length === 8, `Probed exactly 8 language runtimes (actual: ${probedRuntimes.length})`);
+  const runtimeIds = probedRuntimes.map((r: any) => r.id);
+  assert(runtimeIds.includes("python"), "Includes Python runtime probe");
+  assert(runtimeIds.includes("javascript"), "Includes JavaScript/TypeScript runtime probe");
+  assert(runtimeIds.includes("java"), "Includes Java runtime probe");
+  assert(runtimeIds.includes("csharp"), "Includes C#/.NET runtime probe");
+  assert(runtimeIds.includes("ruby"), "Includes Ruby runtime probe");
+  assert(runtimeIds.includes("php"), "Includes PHP runtime probe");
+  assert(runtimeIds.includes("rust"), "Includes Rust runtime probe");
+  assert(runtimeIds.includes("go"), "Includes Go runtime probe");
+
+  console.log("\nALL VERIFICATION CHECKS PASSED!");
+}
+void testRuntimes();
