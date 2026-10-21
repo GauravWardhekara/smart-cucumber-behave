@@ -120,6 +120,11 @@ export const settings = {
         "src/test/**/*.java",
         "tests/**/*.py",
         "tests/**/*.rs",
+        "**/steps/**/*.py",
+        "steps/**/*.py",
+        "**/*_steps.py",
+        "**/step_*.py",
+        "**/steps.py",
       ]);
     },
     parameterTypes: (resource?: WorkspaceFolder | Uri | string): any[] => {

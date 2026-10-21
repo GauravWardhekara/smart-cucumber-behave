@@ -368,4 +368,68 @@ async function testRuntimes() {
 
   console.log("\nALL VERIFICATION CHECKS PASSED!");
 }
-void testRuntimes();
+void testRuntimes().then(async () => {
+  // 17. Verify Python Behave Step Normalization for Cucumber Language Server
+  console.log("\n--- Verifying Python Behave Step Normalization for Cucumber LSP ---");
+  const { normalizeBehavePythonForCucumber } = require("../src/VscodeFiles");
+  const { WasmParserAdapter } = require("@cucumber/language-service/wasm");
+  const { ExpressionBuilder, getGherkinDiagnostics } = require("@cucumber/language-service");
+
+  // Test Case 17.1: Decorator transformation rules
+  const sampleBehaveCode = `
+@behave.given(r"^I have (?P<count>\\d+) items in cart$")
+def step_impl_1(context, count): pass
+
+@when(u"I type in '{name}'")
+def step_impl_2(context, name): pass
+
+@then("""I should see {cost:f} total""")
+def step_impl_3(context, cost): pass
+
+@step('user {user:w} has {n:d} apples')
+def step_impl_4(context, user, n): pass
+`;
+
+  const normalized = normalizeBehavePythonForCucumber(sampleBehaveCode);
+  assert(normalized.includes('@given("^I have (\\d+) items in cart$")'), "Normalizes @behave.given, raw string prefix and (?P<count>\\d+) named group");
+  assert(normalized.includes("@when('I type in \\'{}\\'')") || normalized.includes('@when("I type in \'{}\'")'), "Normalizes u'...' prefix and '{name}' placeholder");
+  assert(normalized.includes('@then("I should see {float} total")'), "Normalizes triple quotes and {cost:f} float placeholder");
+  assert(normalized.includes("@step('user {word} has {int} apples')"), "Normalizes @step, {user:w} and {n:d}");
+
+  // Test Case 17.2: Integration test with Tree-Sitter & ExpressionBuilder
+  const adapter = new WasmParserAdapter(path.resolve(__dirname, "../out"));
+  await adapter.init();
+  const eb = new ExpressionBuilder(adapter);
+
+  const basicPy = fs.readFileSync(exampleStepPath, "utf-8");
+  const outlinePy = fs.readFileSync(path.resolve(__dirname, "../example/features/steps/outline.py"), "utf-8");
+
+  const sources = [
+    {
+      languageName: "python",
+      content: normalizeBehavePythonForCucumber(basicPy),
+      uri: "file:///example/features/steps/basic.py"
+    },
+    {
+      languageName: "python",
+      content: normalizeBehavePythonForCucumber(outlinePy),
+      uri: "file:///example/features/steps/outline.py"
+    }
+  ];
+
+  const res = eb.build(sources, []);
+  assert(res.errors.length === 0, `ExpressionBuilder produced 0 errors on Behave step definitions (actual errors: ${res.errors.length})`);
+  assert(res.expressionLinks.length >= 6, `ExpressionBuilder indexed at least 6 step definitions (actual: ${res.expressionLinks.length})`);
+
+  const expressions = res.expressionLinks.map((l: any) => l.expression);
+
+  // Test Case 17.3: Diagnostics check on outline.feature and basic.feature
+  const outlineFeatureContent = fs.readFileSync(path.resolve(__dirname, "../example/features/outline.feature"), "utf-8");
+  const diagsOutline = getGherkinDiagnostics(outlineFeatureContent, expressions);
+  assert(diagsOutline.length === 0, `outline.feature has 0 undefined step diagnostics (actual: ${diagsOutline.length})`);
+
+  const diagsBasic = getGherkinDiagnostics(featureContent, expressions);
+  assert(diagsBasic.length === 0, `basic.feature has 0 undefined step diagnostics (actual: ${diagsBasic.length})`);
+
+  console.log("\nALL PYTHON BEHAVE LSP VERIFICATION CHECKS PASSED!");
+});

@@ -30,7 +30,10 @@ export async function activateCucumberLanguageServer(context: vscode.ExtensionCo
         { scheme: 'file', language: 'typescript' },
         { scheme: 'file', language: 'typescriptreact' },
         { scheme: 'file', language: 'rust' }
-      ]
+      ],
+      synchronize: {
+        fileEvents: vscode.workspace.createFileSystemWatcher('**/*.{feature,py,js,ts,java,cs,php,rb,rs}')
+      }
     };
 
     client = new LanguageClient(
