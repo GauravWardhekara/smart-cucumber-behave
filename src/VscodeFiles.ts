@@ -40,25 +40,26 @@ export function normalizeBehavePythonForCucumber(pySource: string): string {
 
     let p = pattern;
 
-    // Replace Behave placeholders: {name:d}, {name:f}, {name:w}, {name:s}, {name}
-    p = p.replace(/\{([a-zA-Z0-9_]+)(?::([a-zA-Z0-9_]+))?\}/g, (placeholder: string, name: string, type?: string) => {
+    // Replace Behave / cfparse placeholders: {name:d}, {name:f}, {name:w?}, {name:s+}, {name}
+    p = p.replace(/\{([a-zA-Z0-9_]+)(?::([a-zA-Z0-9_?*+]+))?\}/g, (placeholder: string, name: string, type?: string) => {
       // If user literally wrote {int}, {float}, {word}, {string}, preserve it
       if (!type && standardCucumberTypes.has(name)) {
         return placeholder;
       }
-      if (type === 'd' || type === 'n') {
+      const base = type ? type.replace(/[?*+]$/, '') : '';
+      if (base === 'd' || base === 'n') {
         return '{int}';
       }
-      if (type === 'f') {
+      if (base === 'f') {
         return '{float}';
       }
-      if (type === 'w') {
+      if (base === 'w') {
         return '{word}';
       }
-      if (type === 's') {
+      if (base === 's') {
         return '{string}';
       }
-      // For any custom or named parameters ({thing}, {cost:price}), replace with anonymous {}
+      // For any custom or named parameters ({thing}, {cost:price}, cfparse cardinality), replace with anonymous {}
       return '{}';
     });
 

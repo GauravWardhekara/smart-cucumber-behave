@@ -115,32 +115,51 @@ function buildBehavePatternRegexBody(
   let regexStr = tokenized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   let captureIndex = 0;
-  regexStr = regexStr.replace(/__TOKEN_(\d+)__/g, (_, idxStr) => {
+  regexStr = regexStr.replace(/([ \t]*)__TOKEN_(\d+)__/g, (_, ws, idxStr) => {
     const token = tokens[Number(idxStr)];
     if (token.startsWith("(?:")) {
-      return token; // Preserved alternative/optional regex group
+      return (ws || "") + token; // Preserved alternative/optional regex group
     }
 
     const m = token.match(/^\{([^{}:]*)(?::([^{}]+))?\}$/);
     if (!m) {
-      return "\\{\\}";
+      return (ws || "") + "\\{\\}";
     }
     const namePart = (m[1] ?? "").trim();
-    const typePart = (m[2] ?? "").trim();
-
-    let resolvedType: string | undefined;
-    if (typePart && BEHAVE_TYPE_PATTERNS[typePart]) {
-      resolvedType = BEHAVE_TYPE_PATTERNS[typePart];
-    } else if (!typePart && namePart && BEHAVE_TYPE_PATTERNS[namePart]) {
-      // Cucumber expression style: e.g. {int}, {float}, {string}, {word}
-      resolvedType = BEHAVE_TYPE_PATTERNS[namePart];
-    } else if (typePart) {
-      // Unknown custom type e.g. {user:CustomType} -> match non-whitespace
-      resolvedType = "[^\\s]+";
+    let typePart = (m[2] ?? "").trim();
+    let cardinality = "";
+    if (typePart && /[?*+]$/.test(typePart)) {
+      cardinality = typePart.slice(-1);
+      typePart = typePart.slice(0, -1);
     }
 
-    const typePattern = resolvedType || DEFAULT_PLACEHOLDER_PATTERN;
-    const inner = `(?:${typePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+    let resolvedBase: string | undefined;
+    if (typePart && BEHAVE_TYPE_PATTERNS[typePart]) {
+      resolvedBase = BEHAVE_TYPE_PATTERNS[typePart];
+    } else if (!typePart && namePart && BEHAVE_TYPE_PATTERNS[namePart]) {
+      // Cucumber expression style: e.g. {int}, {float}, {string}, {word}
+      resolvedBase = BEHAVE_TYPE_PATTERNS[namePart];
+    } else if (typePart) {
+      // Unknown custom type e.g. {user:CustomType} -> match non-whitespace
+      resolvedBase = "[^\\s]+";
+    }
+
+    const basePattern = resolvedBase || DEFAULT_PLACEHOLDER_PATTERN;
+    let inner: string;
+
+    if (cardinality === "?") {
+      const optGroup = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+      inner = ws ? `(?:${ws}${optGroup})?` : `(?:${optGroup})?`;
+    } else if (cardinality === "*") {
+      const repGroup = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+      inner = (ws || "") + `(?:${repGroup}(?:\\s*,?\\s*${repGroup})*)?`;
+    } else if (cardinality === "+") {
+      const repGroup = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+      inner = (ws || "") + `(?:${repGroup}(?:\\s*,?\\s*${repGroup})*)`;
+    } else {
+      inner = (ws || "") + `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+    }
+
     if (capturePlaceholders) {
       const g = `p${captureIndex++}`;
       return `(?<${g}>${inner})`;

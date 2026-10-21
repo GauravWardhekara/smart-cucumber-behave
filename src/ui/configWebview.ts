@@ -9,6 +9,8 @@ import {
   probeAllLanguageRuntimes,
   LanguageRuntimeInfo,
 } from "../utils/languageRuntimes";
+import { detectBehaveProjectConfig } from "../run/behaveConfigFile";
+import * as path from "path";
 
 export class SmartBehaveConfigPanel {
   public static currentPanel: SmartBehaveConfigPanel | undefined;
@@ -64,6 +66,9 @@ export class SmartBehaveConfigPanel {
           case "rebuildIndex":
             await this.handleRebuildIndex();
             return;
+          case "openEnvironmentFile":
+            await vscode.commands.executeCommand("smartBehave.openEnvironmentFile");
+            return;
           case "openVsCodeSettings":
             await vscode.commands.executeCommand(
               "workbench.action.openSettings",
@@ -81,10 +86,16 @@ export class SmartBehaveConfigPanel {
     const activeDoc = vscode.window.activeTextEditor?.document.uri.fsPath || "";
     const wsFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "";
     const py = getPythonInterpreterPath(activeDoc, wsFolder);
+    const projectCfg = detectBehaveProjectConfig(wsFolder);
 
     const data = {
       pythonPath: py.path || "Not detected",
       pythonSource: py.source,
+      behaveConfigFile: projectCfg ? path.basename(projectCfg.filePath) : "None detected",
+      behaveConfigTags: projectCfg?.config.defaultTags || projectCfg?.config.tags || "None",
+      behaveConfigUserdata: projectCfg && Object.keys(projectCfg.config.userdata).length > 0
+        ? Object.entries(projectCfg.config.userdata).map(([k, v]) => `${k}=${v}`).join(", ")
+        : "None",
       allowedFiles: settings.allowedFiles(),
       stepPatterns: settings.stepDefinitionsPatterns(),
       featurePatterns: settings.featureFilesPatterns(),
@@ -829,6 +840,24 @@ export class SmartBehaveConfigPanel {
     </div>
 
     <div class="card">
+      <h2>📁 Behave Project Configuration & Lifecycle</h2>
+      <div class="row">
+        <label>Detected Configuration File</label>
+        <div id="behaveConfigFile" class="status-box" style="margin-top:4px;">None detected</div>
+        <span class="desc">Supports behave.ini, .behaverc, setup.cfg, tox.ini</span>
+      </div>
+      <div class="row">
+        <label>Configured Default Tags</label>
+        <div id="behaveConfigTags" class="status-box" style="margin-top:4px;">None</div>
+      </div>
+      <div class="row">
+        <label>Configured Userdata (-D key=value)</label>
+        <div id="behaveConfigUserdata" class="status-box" style="margin-top:4px;">None</div>
+      </div>
+      <button id="btnOpenEnv" style="margin-top:12px;">Open / Create features/environment.py</button>
+    </div>
+
+    <div class="card">
       <h2>⚙️ Behave Test Runner Settings</h2>
       <div class="row">
         <label>Feature Files Pattern</label>
@@ -925,6 +954,15 @@ export class SmartBehaveConfigPanel {
         document.getElementById('chkJustMyCode').checked = d.justMyCode;
         document.getElementById('statSteps').textContent = d.indexedSteps;
         document.getElementById('statFeatures').textContent = d.indexedFeatures;
+        if (document.getElementById('behaveConfigFile')) {
+          document.getElementById('behaveConfigFile').textContent = d.behaveConfigFile || 'None detected';
+        }
+        if (document.getElementById('behaveConfigTags')) {
+          document.getElementById('behaveConfigTags').textContent = d.behaveConfigTags || 'None';
+        }
+        if (document.getElementById('behaveConfigUserdata')) {
+          document.getElementById('behaveConfigUserdata').textContent = d.behaveConfigUserdata || 'None';
+        }
 
         // Custom indent
         document.getElementById('chkCustomIndentEnabled').checked = d.formatCustomIndentEnabled !== false;
@@ -1090,6 +1128,13 @@ export class SmartBehaveConfigPanel {
     document.getElementById('btnRebuild').addEventListener('click', () => {
       vscode.postMessage({ command: 'rebuildIndex' });
     });
+
+    const btnOpenEnv = document.getElementById('btnOpenEnv');
+    if (btnOpenEnv) {
+      btnOpenEnv.addEventListener('click', () => {
+        vscode.postMessage({ command: 'openEnvironmentFile' });
+      });
+    }
 
     function collectForm() {
       return {

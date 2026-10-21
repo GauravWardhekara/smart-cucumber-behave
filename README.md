@@ -112,6 +112,29 @@ Located in the bottom panel under the **`Cucumber-Behave`** tab:
 
 ---
 
+### 🐍 Deep Python Behave Support & Ecosystem
+Fully aligned with the official [Behave Documentation](https://behave.readthedocs.io/en/latest/):
+- **Universal Step Matchers**:
+  - **`parse` (Default Matcher)**: Supports typed placeholders like `{param:d}` (integer), `{param:f}` (float), `{param:w}` (word), `{param:s}` (string), and named variables `{param}`.
+  - **`cfparse` (Cardinality Field Parse)**: Full support for cardinality suffixes like `{param:Type?}` (optional), `{param:Type*}` (0..*), and `{param:Type+}` (1..*).
+  - **`re` (Regular Expressions)**: Named capture groups `(?P<name>...)`, standard regex expressions, and `re.compile(...)`.
+  - Supports `@behave.given`, `@behave.when`, `@behave.then`, `@behave.step` as well as standard `@given`, `@when`, `@then`, `@step`.
+  - Robust handling of raw strings (`r"..."`, `ur"..."`, `ru"..."`) and multiline triple quotes (`"""` / `'''`).
+- **Behave Configuration Files**:
+  - Auto-discovers and parses project configuration files: `behave.ini`, `.behaverc`, `setup.cfg`, `tox.ini`.
+  - Reads `default_tags`, formatters, and `[behave.userdata]` parameters (`-D key=value`).
+- **Environment & Lifecycle (`features/environment.py`)**:
+  - Built-in command and UI button to open or generate `features/environment.py` with standard hooks (`before_all`, `after_all`, `before_feature`, `after_feature`, `before_scenario`, `after_scenario`, `before_step`, `after_step`, `before_tag`, `after_tag`).
+  - Scoped `@fixture` definitions with `yield` and `use_fixture(fixture_func, context)`.
+- **Rich Python Snippets**:
+  - Native Python snippets for steps (`@given`, `@when`, `@then`, `@step`), table processing (`context.table`), docstring payloads (`context.text`), fixtures, and userdata.
+- **Tag Filtering & Specialized CLI Workflows**:
+  - Run with tag expressions (`--tags`): e.g. `@smoke and not @slow`.
+  - Dry run mode (`--dry-run`): validate step definitions without executing test logic.
+  - Work-in-progress mode (`--wip`): run scenarios tagged `@wip` and stop on first failure.
+
+---
+
 ## 🛠️ Configuration Settings
 
 ### Custom Gherkin Formatter Settings
@@ -164,6 +187,10 @@ Located in the bottom panel under the **`Cucumber-Behave`** tab:
 | `smartBehave.rerunLastRun` | `Smart Behave: Rerun Last Run` | Rerun the last executed test session. |
 | `smartBehave.showLiveRun` | `Smart Behave: Show Live Run Panel` | Focus the Cucumber-Behave Live Run dashboard. |
 | `smartBehave.generateStepDefinition` | `Smart Behave: Generate Step Definition in Python` | Generate Python step definition code snippet. |
+| `smartBehave.runWithTags` | `Smart Cucumber-Behave: Run with Tags (--tags)` | Prompt for Behave tag expression (e.g. `@smoke and not @slow`) and execute tests. |
+| `smartBehave.runDryRun` | `Smart Cucumber-Behave: Dry Run (--dry-run)` | Validate step definitions and matchers without executing test logic. |
+| `smartBehave.runWip` | `Smart Cucumber-Behave: Run Work-In-Progress (--wip)` | Execute scenarios tagged `@wip` and stop on first failure. |
+| `smartBehave.openEnvironmentFile` | `Smart Cucumber-Behave: Open/Create features/environment.py` | Open or generate `features/environment.py` with Behave lifecycle hooks and fixtures. |
 
 ---
 

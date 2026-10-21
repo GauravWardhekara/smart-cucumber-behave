@@ -431,5 +431,66 @@ def step_impl_4(context, user, n): pass
   const diagsBasic = getGherkinDiagnostics(featureContent, expressions);
   assert(diagsBasic.length === 0, `basic.feature has 0 undefined step diagnostics (actual: ${diagsBasic.length})`);
 
-  console.log("\nALL PYTHON BEHAVE LSP VERIFICATION CHECKS PASSED!");
+  // 18. Verify Behave Documentation Features (cfparse, universal decorators, behave.ini, snippets)
+  console.log("\n--- Verifying Behave Documentation Features ---");
+  const { tryParseBehaveStepDecoratorLine, parseStepDefinitionsFromPython } = require("../src/core/pythonStepDecorators");
+  const { parseBehaveConfigFile } = require("../src/run/behaveConfigFile");
+
+  // 18.1 cfparse Cardinality Field Matching
+  const reOptional = behavePatternToRegex("I select {opt:w?}");
+  assert(reOptional.test("I select"), "Matches cfparse optional empty value: 'I select'");
+  assert(reOptional.test("I select apple"), "Matches cfparse optional word: 'I select apple'");
+
+  const rePlus = behavePatternToRegex("numbers {n:d+}");
+  assert(rePlus.test("numbers 123"), "Matches cfparse one-or-more: 'numbers 123'");
+  assert(rePlus.test("numbers 123, 456"), "Matches cfparse multiple: 'numbers 123, 456'");
+
+  // 18.2 Universal Decorator Parsing (@behave.given, re.compile, triple quotes)
+  const d1 = tryParseBehaveStepDecoratorLine("@behave.given(r'^order (\\d+) created$')");
+  assert(d1 !== null && d1.keyword === "given" && d1.pattern === "^order (\\d+) created$", "Parses @behave.given with raw regex");
+
+  const d2 = tryParseBehaveStepDecoratorLine("@then(re.compile(r'^status is 200$'))");
+  assert(d2 !== null && d2.keyword === "then" && d2.pattern === "^status is 200$", "Parses @then with re.compile");
+
+  const d3 = tryParseBehaveStepDecoratorLine('@step("""user enters multi text""")');
+  assert(d3 !== null && d3.keyword === "step" && d3.pattern === "user enters multi text", "Parses @step with triple quotes");
+
+  // 18.3 Behave Configuration File Parser (behave.ini)
+  const sampleIni = `
+[behave]
+default_tags = not (@xfail or @not_implemented)
+format = progress3
+junit = true
+junit_directory = build/behave.reports
+dry_run = false
+wip = false
+logging_level = INFO
+
+[behave.userdata]
+env = staging
+browser = firefox
+`;
+  const tempIniPath = path.resolve(__dirname, "../out/test_behave.ini");
+  fs.writeFileSync(tempIniPath, sampleIni, "utf-8");
+  const parsedIni = parseBehaveConfigFile(tempIniPath);
+  fs.unlinkSync(tempIniPath);
+
+  assert(parsedIni !== null, "Parsed behave.ini successfully");
+  assert(parsedIni!.defaultTags === "not (@xfail or @not_implemented)", "Parsed default_tags");
+  assert(parsedIni!.format === "progress3", "Parsed format");
+  assert(parsedIni!.junit === true, "Parsed junit boolean");
+  assert(parsedIni!.userdata["env"] === "staging", "Parsed userdata env");
+  assert(parsedIni!.userdata["browser"] === "firefox", "Parsed userdata browser");
+
+  // 18.4 Python Snippets File Validation
+  const pythonSnippetsPath = path.resolve(__dirname, "../snippets/python.json");
+  assert(fs.existsSync(pythonSnippetsPath), "snippets/python.json exists");
+  const pySnippets = JSON.parse(fs.readFileSync(pythonSnippetsPath, "utf-8"));
+  assert(Boolean(pySnippets["Behave @given step"]), "Contains Behave @given snippet");
+  assert(Boolean(pySnippets["Behave environment.py template"]), "Contains environment.py template snippet");
+  assert(Boolean(pySnippets["Behave @fixture generator"]), "Contains Behave @fixture snippet");
+  assert(Boolean(pySnippets["Behave use_step_matcher"]), "Contains use_step_matcher snippet");
+  assert(Boolean(pySnippets["Behave userdata get"]), "Contains userdata access snippet");
+
+  console.log("\nALL BEHAVE DOCUMENTATION VERIFICATION CHECKS PASSED!");
 });

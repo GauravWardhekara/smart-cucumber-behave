@@ -156,6 +156,10 @@
       {
         "language": "gherkin",
         "path": "./snippets/gherkin.json"
+      },
+      {
+        "language": "python",
+        "path": "./snippets/python.json"
       }
     ],
     "semanticTokenTypes": [
@@ -457,6 +461,26 @@
         "command": "smartBehave.formatCustomGherkin",
         "title": "Smart Cucumber-Behave: Format Feature with Custom Indentation",
         "icon": "$(layout)"
+      },
+      {
+        "command": "smartBehave.runWithTags",
+        "title": "Smart Cucumber-Behave: Run with Tags (--tags)",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "smartBehave.runDryRun",
+        "title": "Smart Cucumber-Behave: Dry Run (--dry-run)",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "smartBehave.runWip",
+        "title": "Smart Cucumber-Behave: Run Work-In-Progress (--wip)",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "smartBehave.openEnvironmentFile",
+        "title": "Smart Cucumber-Behave: Open/Create features/environment.py",
+        "icon": "$(file-code)"
       }
     ],
     "configuration": [

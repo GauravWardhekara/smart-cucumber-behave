@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import { LOG } from "./log";
 import {
@@ -103,6 +105,148 @@ export function registerCommands(context: vscode.ExtensionContext): void {
     await rerunLastBehaveRun();
   };
 
+  const runWithTags = async () => {
+    const input = await vscode.window.showInputBox({
+      prompt: "Enter Behave tag expression (e.g. '@smoke', '@wip', '@smoke and not @slow')",
+      placeHolder: "@smoke and not @slow"
+    });
+    if (!input || !input.trim()) return;
+    const tagExpr = input.trim();
+    const activeDoc = vscode.window.activeTextEditor?.document;
+    const currentStore = getBehaveHierarchyStoreRef();
+    if (!currentStore) return;
+    let nodes: any[] = [];
+    if (activeDoc && activeDoc.fileName.endsWith(".feature")) {
+      const node = await getFeatureHierarchyNodeForPath(currentStore, activeDoc.fileName);
+      if (node) nodes = [node];
+    }
+    if (nodes.length === 0) {
+      nodes = currentStore.getAllFeatures();
+    }
+    if (nodes.length === 0) return;
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      await runBehaveHierarchySelection(nodes, cts.token, undefined, ["--tags", tagExpr]);
+    } finally {
+      cts.dispose();
+    }
+  };
+
+  const runDryRun = async () => {
+    const activeDoc = vscode.window.activeTextEditor?.document;
+    const currentStore = getBehaveHierarchyStoreRef();
+    if (!currentStore) return;
+    let nodes: any[] = [];
+    if (activeDoc && activeDoc.fileName.endsWith(".feature")) {
+      const node = await getFeatureHierarchyNodeForPath(currentStore, activeDoc.fileName);
+      if (node) nodes = [node];
+    }
+    if (nodes.length === 0) {
+      nodes = currentStore.getAllFeatures();
+    }
+    if (nodes.length === 0) return;
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      await runBehaveHierarchySelection(nodes, cts.token, undefined, ["--dry-run"]);
+    } finally {
+      cts.dispose();
+    }
+  };
+
+  const runWip = async () => {
+    const activeDoc = vscode.window.activeTextEditor?.document;
+    const currentStore = getBehaveHierarchyStoreRef();
+    if (!currentStore) return;
+    let nodes: any[] = [];
+    if (activeDoc && activeDoc.fileName.endsWith(".feature")) {
+      const node = await getFeatureHierarchyNodeForPath(currentStore, activeDoc.fileName);
+      if (node) nodes = [node];
+    }
+    if (nodes.length === 0) {
+      nodes = currentStore.getAllFeatures();
+    }
+    if (nodes.length === 0) return;
+    const cts = new vscode.CancellationTokenSource();
+    try {
+      await runBehaveHierarchySelection(nodes, cts.token, undefined, ["--wip"]);
+    } finally {
+      cts.dispose();
+    }
+  };
+
+  const openEnvironmentFile = async () => {
+    const wsFolders = vscode.workspace.workspaceFolders;
+    if (!wsFolders || wsFolders.length === 0) {
+      void vscode.window.showErrorMessage("No workspace folder open.");
+      return;
+    }
+    const root = wsFolders[0].uri.fsPath;
+    const envPath = path.join(root, "features", "environment.py");
+    if (fs.existsSync(envPath)) {
+      const doc = await vscode.workspace.openTextDocument(envPath);
+      await vscode.window.showTextDocument(doc);
+    } else {
+      const ans = await vscode.window.showInformationMessage(
+        "features/environment.py does not exist yet. Would you like to create it with Behave hooks and fixtures?",
+        "Yes, Create environment.py",
+        "Cancel"
+      );
+      if (ans === "Yes, Create environment.py") {
+        const template = [
+          "# -*- coding: utf-8 -*-",
+          '"""Behave test lifecycle environment hooks and fixtures."""',
+          "from behave import fixture, use_fixture",
+          "",
+          "def before_all(context):",
+          '    """Runs once before any feature or scenario executes."""',
+          "    context.base_url = 'https://example.com'",
+          "",
+          "def before_feature(context, feature):",
+          '    """Runs before each feature file is evaluated."""',
+          "    pass",
+          "",
+          "def before_scenario(context, scenario):",
+          '    """Runs before each scenario executes."""',
+          "    pass",
+          "",
+          "def before_step(context, step):",
+          '    """Runs before each step executes."""',
+          "    pass",
+          "",
+          "def after_step(context, step):",
+          '    """Runs after each step executes."""',
+          '    if step.status == \"failed\":',
+          "        pass",
+          "",
+          "def after_scenario(context, scenario):",
+          '    """Runs after each scenario executes."""',
+          "    pass",
+          "",
+          "def after_feature(context, feature):",
+          '    """Runs after each feature file completes."""',
+          "    pass",
+          "",
+          "def after_all(context):",
+          '    """Runs once after all features have finished execution."""',
+          "    pass",
+          "",
+          "def before_tag(context, tag):",
+          '    """Runs before tags to attach fixtures or conditional setup."""',
+          "    pass",
+          ""
+        ].join("\n");
+        const featuresDir = path.join(root, "features");
+        if (!fs.existsSync(featuresDir)) {
+          fs.mkdirSync(featuresDir, { recursive: true });
+        }
+        fs.writeFileSync(envPath, template, "utf-8");
+        const doc = await vscode.workspace.openTextDocument(envPath);
+        await vscode.window.showTextDocument(doc);
+        void vscode.window.showInformationMessage("Created features/environment.py with Behave hooks!");
+      }
+    }
+  };
+
   const discover = async () => {
     await Promise.all([
       behaveTestController.discoverAll(),
@@ -205,6 +349,14 @@ export function registerCommands(context: vscode.ExtensionContext): void {
       { name: "smartBehave.showLiveRun", fn: revealLiveRunPanel },
       { name: "behave.showLiveRun", fn: revealLiveRunPanel },
       { name: "behaveRunner.showLiveRun", fn: revealLiveRunPanel },
+      { name: "smartBehave.runWithTags", fn: runWithTags },
+      { name: "behave.runWithTags", fn: runWithTags },
+      { name: "smartBehave.runDryRun", fn: runDryRun },
+      { name: "behave.runDryRun", fn: runDryRun },
+      { name: "smartBehave.runWip", fn: runWip },
+      { name: "behave.runWip", fn: runWip },
+      { name: "smartBehave.openEnvironmentFile", fn: openEnvironmentFile },
+      { name: "behave.openEnvironmentFile", fn: openEnvironmentFile },
       {
         name: "smartBehave.formatCustomGherkin",
         fn: async () => {
