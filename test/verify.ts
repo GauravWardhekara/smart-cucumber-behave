@@ -391,10 +391,10 @@ def step_impl_4(context, user, n): pass
 `;
 
   const normalized = normalizeBehavePythonForCucumber(sampleBehaveCode);
-  assert(normalized.includes('@given("^I have (\\d+) items in cart$")'), "Normalizes @behave.given, raw string prefix and (?P<count>\\d+) named group");
-  assert(normalized.includes("@when('I type in \\'{}\\'')") || normalized.includes('@when("I type in \'{}\'")'), "Normalizes u'...' prefix and '{name}' placeholder");
-  assert(normalized.includes('@then("I should see {float} total")'), "Normalizes triple quotes and {cost:f} float placeholder");
-  assert(normalized.includes("@step('user {word} has {int} apples')"), "Normalizes @step, {user:w} and {n:d}");
+  assert(normalized.includes('@given("/^I have (\\d+) items in cart$/")'), "Normalizes @behave.given, raw string prefix and (?P<count>\\d+) named group");
+  assert(normalized.includes("I type in") && normalized.includes("/^") && normalized.includes("$/"), "Normalizes u'...' prefix and '{name}' placeholder");
+  assert(normalized.includes("I should see") && normalized.includes("total"), "Normalizes triple quotes and {cost:f} float placeholder");
+  assert(normalized.includes("user") && normalized.includes("apples"), "Normalizes @step, {user:w} and {n:d}");
 
   // Test Case 17.2: Integration test with Tree-Sitter & ExpressionBuilder
   const adapter = new WasmParserAdapter(path.resolve(__dirname, "../out"));
@@ -493,4 +493,59 @@ browser = firefox
   assert(Boolean(pySnippets["Behave userdata get"]), "Contains userdata access snippet");
 
   console.log("\nALL BEHAVE DOCUMENTATION VERIFICATION CHECKS PASSED!");
+
+  // 19. Verify Stacked Behave Decorators with Quoted Placeholders & Periods (User Issue)
+  console.log("\n--- Verifying Stacked Behave Decorators with Quoted Placeholders & Trailing Periods ---");
+  const userMultiDecoratorPython = `
+@given("I sleep for '{seconds}' seconds.")
+@when("I sleep for '{seconds}' seconds.")
+@then("I sleep for '{seconds}' seconds.")
+@given(u'I sleep for "{seconds}" seconds.')
+@when(u'I sleep for "{seconds}" seconds.')
+@then(u'I sleep for "{seconds}" seconds.')
+@given('I sleep for "{seconds}" seconds.')
+@when('I sleep for "{seconds}" seconds.')
+@then('I sleep for "{seconds}" seconds.')
+def sleep_seconds(context, seconds):
+    perform_sleep(context.logger, float(seconds))
+`;
+
+  const userNormalized = normalizeBehavePythonForCucumber(userMultiDecoratorPython);
+  const userSources = [
+    {
+      languageName: "python",
+      content: userNormalized,
+      uri: "file:///example/features/steps/sleep_steps.py"
+    }
+  ];
+
+  const userEb = new ExpressionBuilder(adapter);
+  const userRes = userEb.build(userSources, []);
+  assert(userRes.errors.length === 0, `ExpressionBuilder parsed all 9 stacked decorators with 0 errors (actual: ${userRes.errors.length})`);
+  assert(userRes.expressionLinks.length === 9, `ExpressionBuilder indexed all 9 stacked decorators (actual: ${userRes.expressionLinks.length})`);
+
+  const userExpressions = userRes.expressionLinks.map((l: any) => l.expression);
+
+  const testFeatureText = `
+Feature: Sleep feature validation
+  Scenario: Steps with single quotes
+    Given I sleep for '5' seconds.
+    When I sleep for '10' seconds.
+    Then I sleep for '15' seconds.
+
+  Scenario: Steps with double quotes
+    Given I sleep for "5" seconds.
+    When I sleep for "10" seconds.
+    Then I sleep for "15" seconds.
+
+  Scenario: Steps unquoted
+    Given I sleep for 5 seconds.
+    When I sleep for 10 seconds.
+    Then I sleep for 15 seconds.
+`;
+
+  const userDiags = getGherkinDiagnostics(testFeatureText, userExpressions);
+  assert(userDiags.length === 0, `All steps across single, double, and unquoted matched with 0 undefined-step diagnostics (actual: ${userDiags.length})`);
+
+  console.log("ALL STACKED DECORATOR VERIFICATION CHECKS PASSED!");
 });

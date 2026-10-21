@@ -103,11 +103,22 @@ function buildBehavePatternRegexBody(
   );
 
   // 3. Tokenize regex groups and placeholders
-  const tokens: string[] = [];
-  const tokenized = processed.replace(
+  const tokens: { raw: string; isQuoted?: boolean }[] = [];
+
+  // Match quoted placeholders: '{name}', "{name}", \'{name}\', \"{name}\"
+  let tokenized = processed.replace(
+    /(?:\\?(['"]))\{([^{}:]*)(?::([^{}]+))?\}\1/g,
+    (m) => {
+      tokens.push({ raw: m, isQuoted: true });
+      return `__TOKEN_${tokens.length - 1}__`;
+    }
+  );
+
+  // Match unquoted placeholders or (?:...) groups
+  tokenized = tokenized.replace(
     /(?:\(\?:[^\)]+\)\??|\{[^{}]*\})/g,
     (m) => {
-      tokens.push(m);
+      tokens.push({ raw: m, isQuoted: false });
       return `__TOKEN_${tokens.length - 1}__`;
     }
   );
@@ -117,11 +128,11 @@ function buildBehavePatternRegexBody(
   let captureIndex = 0;
   regexStr = regexStr.replace(/([ \t]*)__TOKEN_(\d+)__/g, (_, ws, idxStr) => {
     const token = tokens[Number(idxStr)];
-    if (token.startsWith("(?:")) {
-      return (ws || "") + token; // Preserved alternative/optional regex group
+    if (token.raw.startsWith("(?:")) {
+      return (ws || "") + token.raw; // Preserved alternative/optional regex group
     }
 
-    const m = token.match(/^\{([^{}:]*)(?::([^{}]+))?\}$/);
+    const m = token.raw.match(/\{([^{}:]*)(?::([^{}]+))?\}/);
     if (!m) {
       return (ws || "") + "\\{\\}";
     }
@@ -147,24 +158,34 @@ function buildBehavePatternRegexBody(
     const basePattern = resolvedBase || DEFAULT_PLACEHOLDER_PATTERN;
     let inner: string;
 
+    const prefixWs = cardinality === "?" ? "" : (ws || "");
+
     if (cardinality === "?") {
       const optGroup = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
       inner = ws ? `(?:${ws}${optGroup})?` : `(?:${optGroup})?`;
     } else if (cardinality === "*") {
       const repGroup = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
-      inner = (ws || "") + `(?:${repGroup}(?:\\s*,?\\s*${repGroup})*)?`;
+      inner = `(?:${repGroup}(?:\\s*,?\\s*${repGroup})*)?`;
     } else if (cardinality === "+") {
       const repGroup = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
-      inner = (ws || "") + `(?:${repGroup}(?:\\s*,?\\s*${repGroup})*)`;
+      inner = `(${repGroup}(?:\\s*,?\\s*${repGroup})*)`;
     } else {
-      inner = (ws || "") + `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+      inner = `(?:${basePattern}|${OUTLINE_PLACEHOLDER_PATTERN})`;
+    }
+
+    if (token.isQuoted) {
+      if (capturePlaceholders) {
+        const g = `p${captureIndex++}`;
+        return prefixWs + `['"]?(?<${g}>${inner})['"]?`;
+      }
+      return prefixWs + `['"]?${inner}['"]?`;
     }
 
     if (capturePlaceholders) {
       const g = `p${captureIndex++}`;
-      return `(?<${g}>${inner})`;
+      return prefixWs + `(?<${g}>${inner})`;
     }
-    return inner;
+    return prefixWs + inner;
   });
 
   return regexStr;
