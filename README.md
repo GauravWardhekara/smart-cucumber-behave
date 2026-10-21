@@ -115,9 +115,11 @@ Located in the bottom panel under the **`Cucumber-Behave`** tab:
 ### 🐍 Deep Python Behave Support & Ecosystem
 Fully aligned with the official [Behave Documentation](https://behave.readthedocs.io/en/latest/):
 - **Universal Step Matchers**:
-  - **`parse` (Default Matcher)**: Supports typed placeholders like `{param:d}` (integer), `{param:f}` (float), `{param:w}` (word), `{param:s}` (string), and named variables `{param}`.
+  - **`parse` (Default Matcher)**: Supports typed placeholders like `{param:d}` (integer), `{param:f}` (float), `{param:w}` (word), `{param:s}` (string), named variables `{param}`, and anonymous `{}` / `"{}"`.
   - **`cfparse` (Cardinality Field Parse)**: Full support for cardinality suffixes like `{param:Type?}` (optional), `{param:Type*}` (0..*), and `{param:Type+}` (1..*).
   - **`re` (Regular Expressions)**: Named capture groups `(?P<name>...)`, standard regex expressions, and `re.compile(...)`.
+  - **Quoted Placeholders & Punctuation**: Full support for quoted parameters `'{param}'`, `"{param}"`, anonymous `"{}"`, and trailing periods/punctuation (e.g. `@given("I sleep for '{seconds}' seconds.")`). Flexibly matches single-quoted, double-quoted, or unquoted steps in `.feature` files without undefined-step warnings.
+  - **Stacked Decorators**: Supports multiple `@given`, `@when`, `@then`, and `@step` decorators stacked over the same step definition function.
   - Supports `@behave.given`, `@behave.when`, `@behave.then`, `@behave.step` as well as standard `@given`, `@when`, `@then`, `@step`.
   - Robust handling of raw strings (`r"..."`, `ur"..."`, `ru"..."`) and multiline triple quotes (`"""` / `'''`).
 - **Behave Configuration Files**:
@@ -191,25 +193,6 @@ Fully aligned with the official [Behave Documentation](https://behave.readthedoc
 | `smartBehave.runDryRun` | `Smart Cucumber-Behave: Dry Run (--dry-run)` | Validate step definitions and matchers without executing test logic. |
 | `smartBehave.runWip` | `Smart Cucumber-Behave: Run Work-In-Progress (--wip)` | Execute scenarios tagged `@wip` and stop on first failure. |
 | `smartBehave.openEnvironmentFile` | `Smart Cucumber-Behave: Open/Create features/environment.py` | Open or generate `features/environment.py` with Behave lifecycle hooks and fixtures. |
-
----
-
-## 📦 Multi-Registry Packaging
-
-This extension is configured for independent publication to both registries:
-- **VS Code Marketplace**: Publisher `GauravWardhekar`
-- **Open VSX Registry**: Publisher `GauravWardhekara`
-
-```bash
-# Package for all registries:
-npm run package:all
-
-# Package specifically for VS Code Marketplace:
-npm run package:vscode
-
-# Package specifically for Open VSX Registry:
-npm run package:openvsx
-```
 
 ---
 
