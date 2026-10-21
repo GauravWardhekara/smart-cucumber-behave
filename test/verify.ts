@@ -1,0 +1,312 @@
+import * as fs from "fs";
+import * as path from "path";
+
+// Mock vscode module when running outside VS Code Extension Host
+const Module = require("module");
+const originalRequire = Module.prototype.require;
+Module.prototype.require = function (id: string) {
+  if (id === "vscode") {
+    return {
+      window: {
+        showQuickPick: () => Promise.resolve(undefined),
+        createOutputChannel: () => ({
+          append: () => {},
+          appendLine: () => {},
+          info: () => {},
+          warn: () => {},
+          error: () => {},
+          dispose: () => {}
+        })
+      },
+      workspace: {
+        getWorkspaceFolder: () => undefined,
+        getConfiguration: () => ({ get: () => undefined })
+      },
+      Uri: { file: (f: string) => ({ fsPath: f }) },
+      Position: class {
+        constructor(public line: number, public character: number) {}
+      },
+      Range: class {
+        start: any;
+        end: any;
+        constructor(public startLine: number, public startChar: number, public endLine: number, public endChar: number) {
+          this.start = { line: startLine, character: startChar };
+          this.end = { line: endLine, character: endChar };
+        }
+      },
+      Location: class {
+        constructor(public uri: any, public rangeOrPosition: any) {}
+      },
+      TestMessage: class {
+        expectedOutput?: string;
+        actualOutput?: string;
+        location?: any;
+        constructor(public message: string) {}
+      },
+      TestRunRequest: class {
+        constructor(public include?: any[]) {}
+      },
+      TestRunProfileKind: { Run: 1, Debug: 2 },
+      tests: {
+        createTestController: (id: string, label: string) => {
+          const items = new Map();
+          return {
+            items,
+            createTestItem: (itemId: string, itemLabel: string, uri: any) => ({
+              id: itemId,
+              label: itemLabel,
+              uri,
+              children: new Map(),
+              range: undefined
+            }),
+            createTestRun: () => ({
+              started: () => {},
+              passed: () => {},
+              failed: () => {},
+              skipped: () => {},
+              end: () => {}
+            }),
+            createRunProfile: () => ({ dispose: () => {} })
+          };
+        }
+      }
+    };
+  }
+  return originalRequire.apply(this, arguments);
+};
+
+import { parseFeatureFile } from "../src/core/featureParser";
+import { parseStepDefinitionsFromPython } from "../src/core/pythonStepDecorators";
+import { findMatchingDefinitions, parseStepLine } from "../src/core/stepMatcher";
+import { computeFeatureSemanticTokenSpans } from "../src/core/featureSemanticTokens";
+import { computeFeatureFormatLineEdits } from "../src/core/featureFormat";
+import { escapeBehaveNameSelect } from "../src/core/behaveNameSelect";
+
+function assert(condition: boolean, msg: string) {
+  if (!condition) {
+    console.error(`FAIL: ${msg}`);
+    process.exit(1);
+  }
+  console.log(`PASS: ${msg}`);
+}
+
+const exampleFeaturePath = path.resolve(__dirname, "../example/features/basic.feature");
+const exampleStepPath = path.resolve(__dirname, "../example/features/steps/basic.py");
+
+// 1. Verify feature file parser
+const featureContent = fs.readFileSync(exampleFeaturePath, "utf-8");
+const parsedFeature = parseFeatureFile(exampleFeaturePath, featureContent);
+assert(parsedFeature.name === "Test Environment", "Feature name matches");
+assert(parsedFeature.scenarios.length === 3, "Found 3 scenarios");
+assert(parsedFeature.scenarios[0].name === "First", "First scenario name is First");
+assert(parsedFeature.scenarios[0].steps.length === 2, "First scenario has 2 steps");
+
+// 2. Verify python step decorator parser
+const pythonContent = fs.readFileSync(exampleStepPath, "utf-8");
+const stepDefs = parseStepDefinitionsFromPython(exampleStepPath, pythonContent);
+assert(stepDefs.length === 2, `Found 2 step definitions (actual: ${stepDefs.length})`);
+assert(stepDefs[0].keyword === "when", "First step def is @when");
+assert(stepDefs[1].keyword === "then", "Second step def is @then");
+
+// 3. Verify step matcher
+const step1 = parsedFeature.scenarios[0].steps[0];
+const stepInfo1 = parseStepLine(`${step1.keyword} ${step1.text}`);
+assert(stepInfo1 !== null, "Step line parsed");
+const matches = findMatchingDefinitions(stepInfo1!.text, stepInfo1!.effectiveKeyword, stepDefs);
+assert(matches.length > 0, "Step matched Python definition");
+assert(matches[0].filePath === exampleStepPath, "Matched definition file matches");
+
+// 4. Verify semantic tokens
+const tokens = computeFeatureSemanticTokenSpans(featureContent);
+assert(tokens.length > 0, `Generated semantic tokens (count: ${tokens.length})`);
+
+// 5. Verify document formatting
+const lines = featureContent.split(/\r?\n/);
+const edits = computeFeatureFormatLineEdits(lines, 0, lines.length - 1, {
+  insertSpaces: true,
+  tabSize: 4,
+});
+console.log(`PASS: Computed ${edits.length} formatting edits`);
+
+// 6. Verify exact scenario name matching and anchoring
+assert(escapeBehaveNameSelect("First") === "^First$", "escapeBehaveNameSelect anchors with ^ and $");
+assert(escapeBehaveNameSelect("Hello (World) [test]") === "^Hello \\(World\\) \\[test\\]$", "escapeBehaveNameSelect escapes regex symbols");
+
+// 7. Verify enhanced step expressions (Behave parse types & Cucumber expressions)
+const { behavePatternToRegex, getStepTextInvariants } = require("../src/core/stepMatcher");
+assert(behavePatternToRegex("I have {n:d} apples").test("I have 42 apples"), "Matches integer placeholder {n:d}");
+assert(behavePatternToRegex("the cost is {cost:f}").test("the cost is 19.99"), "Matches float placeholder {cost:f}");
+assert(behavePatternToRegex("user {name:w} logs in").test("user Alice logs in"), "Matches word placeholder {name:w}");
+assert(behavePatternToRegex("user {word} logs in").test("user Alice logs in"), "Matches Cucumber {word}");
+assert(behavePatternToRegex("user {string} logs in").test('user "Bob" logs in'), "Matches Cucumber {string}");
+assert(behavePatternToRegex("I buy {count:int} items").test("I buy 5 items"), "Matches Cucumber {int}");
+assert(behavePatternToRegex("I have an apple(s)").test("I have an apple"), "Matches singular with optional (s)");
+assert(behavePatternToRegex("I have an apple(s)").test("I have an apples"), "Matches plural with optional (s)");
+assert(behavePatternToRegex("I select red/blue").test("I select red"), "Matches alternative word slash red/blue");
+
+// 8. Verify pattern invariants expansion
+const variants = getStepTextInvariants("user logs in/out");
+assert(variants.length === 2 && variants.includes("user logs in") && variants.includes("user logs out"), "Expands slash invariants");
+
+// 9. Verify Python step snippet generation
+const { generateStepSnippet } = require("../src/core/stepSnippetGenerator");
+const gen = generateStepSnippet("when", 'I enter "alice" and 3 items');
+assert(gen.decoratorKeyword === "when", "Generated decorator is @when");
+assert(gen.paramNames.length === 2, "Extracted 2 parameters");
+assert(gen.code.includes("def step_impl(context,"), "Generated function signature with context and params");
+
+// 10. Verify JSON docstring formatting
+const docstringFeature = [
+  "Feature: Docstring test",
+  "  Scenario: Post JSON",
+  "    When I send payload:",
+  '      """',
+  '      {"name":"test","count":1}',
+  '      """'
+];
+const docEdits = computeFeatureFormatLineEdits(docstringFeature, 0, docstringFeature.length - 1, {
+  insertSpaces: true,
+  tabSize: 4
+});
+assert(docEdits.some(e => e.newText.includes('"""')), "Docstring delimiters formatted");
+
+// 11. Verify smartBehaveArgs launch config parser
+const { splitCommandLineArgs, getLaunchJsonSmartBehaveArgs } = require("../src/run/behaveLaunchConfig");
+const sampleArgs = "-D property_file=configs/config.properties -D endpoint_file=endpoints.json -D caps_file=ios_caps_v5.json -D log_level=DEBUG";
+const split = splitCommandLineArgs(sampleArgs);
+assert(split.length === 8, `splitCommandLineArgs split 8 args (actual: ${split.length})`);
+assert(split[0] === "-D" && split[1] === "property_file=configs/config.properties", "First -D arg matches");
+assert(split[7] === "log_level=DEBUG", "Last -D arg matches");
+
+const exampleLaunchJsonArgs = getLaunchJsonSmartBehaveArgs(path.resolve(__dirname, "../example"));
+assert(exampleLaunchJsonArgs.length === 8, `Parsed example launch.json args (actual: ${exampleLaunchJsonArgs.length})`);
+assert(exampleLaunchJsonArgs[3] === "endpoint_file=endpoints.json", "Parsed endpoint_file argument");
+
+// 12. Verify config file detector & caps_file arg injection
+const { detectConfigFiles, applyCapsFileArg } = require("../src/run/behaveConfigFile");
+const exampleRoot = path.resolve(__dirname, "../example");
+const detected = detectConfigFiles(exampleRoot, "configs");
+assert(detected.length >= 3, `Detected at least 3 config files in example/configs (found: ${detected.length})`);
+assert(detected.includes("configs/android_caps_v1.json"), "Found android_caps_v1.json");
+assert(detected.includes("configs/ios_caps_v5.json"), "Found ios_caps_v5.json");
+assert(detected.includes("configs/config.properties"), "Found config.properties");
+
+// Verify replacing caps_file in existing extraArgs
+const updatedArgs = applyCapsFileArg(exampleLaunchJsonArgs, "configs/android_caps_v1.json");
+assert(updatedArgs.length === 8, `Updated args retains 8 tokens (actual: ${updatedArgs.length})`);
+assert(updatedArgs.includes("caps_file=configs/android_caps_v1.json"), "Injected selected android caps file with relative path");
+assert(!updatedArgs.includes("caps_file=ios_caps_v5.json"), "Replaced old caps_file");
+assert(updatedArgs.includes("property_file=configs/config.properties"), "Preserved other properties");
+
+// Verify appending caps_file when none exists
+const cleanArgs = applyCapsFileArg(["-f", "pretty"], "configs/custom_caps.json");
+assert(cleanArgs.length === 4, "Appended -D and caps_file");
+assert(cleanArgs[2] === "-D" && cleanArgs[3] === "caps_file=configs/custom_caps.json", "Appended caps_file argument with relative path");
+
+// 13. Verify scenario & feature pass/fail propagation in ActiveTestRunSession
+const { ActiveTestRunSession, BehaveTestControllerManager } = require("../src/testController");
+
+const mockManager = new BehaveTestControllerManager();
+const featureUri = { fsPath: exampleFeaturePath };
+
+const mockFeatureItem = {
+  id: exampleFeaturePath,
+  label: "Test Environment",
+  uri: featureUri,
+  children: new Map(),
+  range: { start: { line: 0 } }
+};
+
+const mockSc1 = {
+  id: `${exampleFeaturePath}:4`,
+  label: "First",
+  uri: featureUri,
+  range: { start: { line: 4 } },
+  children: new Map()
+};
+
+const mockSc2 = {
+  id: `${exampleFeaturePath}:10`,
+  label: "Second",
+  uri: featureUri,
+  range: { start: { line: 10 } },
+  children: new Map()
+};
+
+mockFeatureItem.children.set(mockSc1.id, mockSc1);
+mockFeatureItem.children.set(mockSc2.id, mockSc2);
+mockManager.getController().items.set(exampleFeaturePath, mockFeatureItem);
+
+// Test Case 1: When one scenario fails, it fails and the whole feature fails
+const testEvents1: string[] = [];
+const mockRun1 = {
+  started: (item: any) => testEvents1.push(`started:${item.label}`),
+  passed: (item: any) => testEvents1.push(`passed:${item.label}`),
+  failed: (item: any, msg: any) => testEvents1.push(`failed:${item.label}`),
+  skipped: (item: any) => testEvents1.push(`skipped:${item.label}`),
+  end: () => testEvents1.push("end")
+};
+
+const session1 = new ActiveTestRunSession(mockManager.getController(), mockRun1, mockManager);
+session1.onScenarioStarted(exampleFeaturePath, "First", `${exampleFeaturePath}:5`);
+session1.onScenarioFinished(exampleFeaturePath, "First", `${exampleFeaturePath}:5`, "passed");
+session1.onScenarioStarted(exampleFeaturePath, "Second", `${exampleFeaturePath}:11`);
+session1.onStepFinished(exampleFeaturePath, "Second", `${exampleFeaturePath}:12`, "When", "step fails", "failed", "AssertionError: expected True but got False");
+session1.onScenarioFinished(exampleFeaturePath, "Second", `${exampleFeaturePath}:11`, "failed");
+session1.onFeatureFinished(exampleFeaturePath, "Test Environment", "failed");
+session1.onRunFinished(1);
+
+assert(testEvents1.includes("passed:First"), "Scenario First marked as passed");
+assert(testEvents1.includes("failed:Second"), "Scenario Second marked as failed");
+assert(testEvents1.includes("failed:Test Environment"), "Feature marked as failed when a scenario fails");
+
+// Test Case 2: When all scenarios pass, all scenarios pass and the whole feature passes
+const testEvents2: string[] = [];
+const mockRun2 = {
+  started: (item: any) => testEvents2.push(`started:${item.label}`),
+  passed: (item: any) => testEvents2.push(`passed:${item.label}`),
+  failed: (item: any, msg: any) => testEvents2.push(`failed:${item.label}`),
+  skipped: (item: any) => testEvents2.push(`skipped:${item.label}`),
+  end: () => testEvents2.push("end")
+};
+
+const session2 = new ActiveTestRunSession(mockManager.getController(), mockRun2, mockManager);
+session2.onScenarioStarted(exampleFeaturePath, "First", `${exampleFeaturePath}:5`);
+session2.onScenarioFinished(exampleFeaturePath, "First", `${exampleFeaturePath}:5`, "passed");
+session2.onScenarioStarted(exampleFeaturePath, "Second", `${exampleFeaturePath}:11`);
+session2.onScenarioFinished(exampleFeaturePath, "Second", `${exampleFeaturePath}:11`, "passed");
+session2.onFeatureFinished(exampleFeaturePath, "Test Environment", "passed");
+session2.onRunFinished(0);
+
+assert(testEvents2.includes("passed:First"), "Scenario First marked as passed");
+assert(testEvents2.includes("passed:Second"), "Scenario Second marked as passed");
+assert(testEvents2.includes("passed:Test Environment"), "Whole feature marked as passed when all scenarios pass");
+assert(!testEvents2.some(e => e.startsWith("failed:")), "No failures recorded when all pass");
+
+// 14. Verify Cucumber Language Server WASM files and components
+const wasmDir = path.resolve(__dirname, "../out");
+const expectedWasms = [
+  "c_sharp.wasm",
+  "go.wasm",
+  "java.wasm",
+  "php.wasm",
+  "python.wasm",
+  "ruby.wasm",
+  "rust.wasm",
+  "tree-sitter.wasm",
+  "tsx.wasm"
+];
+for (const wasm of expectedWasms) {
+  const wasmPath = path.join(wasmDir, wasm);
+  assert(fs.existsSync(wasmPath), `WASM file exists: ${wasm}`);
+}
+
+const pkgPath = path.resolve(__dirname, "../package.json");
+const pkgData = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
+assert(pkgData.name === "smart-cucumber-behave", "package.json name is smart-cucumber-behave");
+assert(pkgData.displayName === "Smart Cucumber-Behave", "package.json displayName is Smart Cucumber-Behave");
+const langIds = pkgData.contributes.languages.map((l: any) => l.id);
+assert(langIds.includes("cucumber"), "Contributes 'cucumber' language");
+assert(langIds.includes("behave"), "Contributes 'behave' language");
+
+console.log("\nALL VERIFICATION CHECKS PASSED!");
