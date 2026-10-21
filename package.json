@@ -843,7 +843,8 @@
     "package": "node scripts/package-registry.js --all",
     "package:vscode": "node scripts/package-registry.js --registry=vscode",
     "package:openvsx": "node scripts/package-registry.js --registry=openvsx",
-    "package:all": "node scripts/package-registry.js --all"
+    "package:all": "node scripts/package-registry.js --all",
+    "install:ide": "node scripts/install-ide.js"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
