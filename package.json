@@ -330,7 +330,7 @@
       "panel": [
         {
           "id": "smartBehaveExecutionPanel",
-          "title": "Smart Behave",
+          "title": "Cucumber-Behave",
           "icon": "media/behave-activity.svg"
         }
       ]
