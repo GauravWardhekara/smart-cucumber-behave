@@ -3,8 +3,12 @@ MIT License
 Copyright (c) 2025-2026 Gaurav Wardhekar and Smart Behave Runner Contributors
 
 This extension unifies and builds upon work originally developed by:
+- Cucumber for Visual Studio Code: Copyright (c) SmartBear & Cucumber Open Source Community (https://github.com/cucumber/vscode)
+- Behave: Copyright (c) Jens Engel, Benno Rice, and contributors (https://github.com/behave/behave)
 - behave-vsc: Copyright (c) 2025 Curve & SimplyTest (https://github.com/simplytest/behave-vsc)
 - behave-runner: Copyright (c) Remo Yukoff (https://github.com/RemoYukoff/behave-runner)
+- Tree-Sitter: Copyright (c) Max Brunsfeld (https://github.com/tree-sitter/tree-sitter)
+- parse: Copyright (c) Richard Jones (https://github.com/r1chardj0n3s/parse)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -196,5 +196,44 @@ Fully aligned with the official [Behave Documentation](https://behave.readthedoc
 
 ---
 
+## 🙏 Acknowledgements & Open-Source Credits
+
+Smart Cucumber-Behave stands on the shoulders of these outstanding open-source projects, communities, and authors:
+
+* **[Cucumber for Visual Studio Code (`cucumber/vscode`)](https://github.com/cucumber/vscode)**:
+  - Official Cucumber extension developed by SmartBear and the Cucumber Open Source Community.
+  - Source for the official `@cucumber/language-server`, `@cucumber/language-service`, `@cucumber/cucumber-expressions`, and tree-sitter WebAssembly (WASM) grammars powering multilingual step indexing, diagnostics, autocompletion, and semantic tokens.
+  - Licensed under the [MIT License](https://github.com/cucumber/vscode/blob/main/LICENSE).
+
+* **[Behave (`behave/behave`)](https://github.com/behave/behave)**:
+  - Behavior-driven development test framework for Python by Jens Engel, Benno Rice, and contributors.
+  - Architectural specifications and documentation for Behave step matchers (`parse`, `cfparse`, `re`), configuration discovery (`behave.ini`, `.behaverc`, `setup.cfg`, `tox.ini`), and lifecycle hooks (`features/environment.py`).
+  - Licensed under the [BSD 2-Clause License](https://github.com/behave/behave/blob/master/LICENSE).
+
+* **[behave-vsc (`simplytest/behave-vsc`)](https://github.com/simplytest/behave-vsc)**:
+  - Copyright (c) Curve & SimplyTest.
+  - Original VS Code Behave integration foundation and command inspiration.
+  - Licensed under the [MIT License](https://github.com/simplytest/behave-vsc/blob/main/LICENSE).
+
+* **[behave-runner (`RemoYukoff/behave-runner`)](https://github.com/RemoYukoff/behave-runner)**:
+  - Copyright (c) Remo Yukoff.
+  - Behave test discovery and execution concepts.
+  - Licensed under the [MIT License](https://github.com/RemoYukoff/behave-runner/blob/master/LICENSE).
+
+* **[Tree-Sitter (`tree-sitter/tree-sitter`)](https://github.com/tree-sitter/tree-sitter)**:
+  - Fast, incremental parser generator by Max Brunsfeld and the Tree-Sitter community.
+  - Powers syntax parsing and AST queries across Python, JavaScript, TypeScript, Java, C#, Ruby, PHP, Rust, and Go.
+  - Licensed under the [MIT License](https://github.com/tree-sitter/tree-sitter/blob/master/LICENSE).
+
+* **[parse (`r1chardj0n3s/parse`)](https://github.com/r1chardj0n3s/parse)**:
+  - Fast Python string parsing library by Richard Jones, powering Behave's format expression matching.
+  - Licensed under the [MIT License](https://github.com/r1chardj0n3s/parse/blob/master/LICENSE).
+
+* **[debugpy (`microsoft/debugpy`)](https://github.com/microsoft/debugpy)**:
+  - Microsoft's Python debugger implementation for VS Code, enabling breakpoint debugging in Behave step definitions and hooks.
+  - Licensed under the [MIT License](https://github.com/microsoft/debugpy/blob/main/LICENSE).
+
+---
+
 ## 📄 License
 This project is licensed under the [MIT License](LICENSE).
