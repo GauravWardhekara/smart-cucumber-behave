@@ -564,6 +564,11 @@
             ],
             "description": "Regular Expressions to match failed runs against. Should have two groups: expected and actual"
           },
+          "smartBehave.diagnostics.suppressDuplicateBehaveWarnings": {
+            "type": "boolean",
+            "default": true,
+            "description": "Suppress redundant Behave undefined-step warnings when the Cucumber Language Server diagnostics are active to prevent duplicate warnings."
+          },
           "behave.allowedFiles": {
             "type": "string",
             "default": "**/*.feature",

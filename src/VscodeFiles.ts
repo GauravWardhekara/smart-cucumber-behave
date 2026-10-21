@@ -26,9 +26,11 @@ export function behaveStepToCucumberRegexString(pattern: string, quoteChar: stri
     return clean;
   }
 
-  // 1. Pre-process alternatives like red/blue -> (?:red|blue)
+  // 1. Pre-process alternatives like red/blue -> (?:red/blue|red|blue)
+  // Preserves literal slash phrases like date/time while also supporting individual alternatives
   let processed = pattern.replace(/\b([a-zA-Z0-9_]+)(?:\/([a-zA-Z0-9_]+))+\b/g, (match) => {
-    return `(?:${match.replace(/\//g, '|')})`;
+    const parts = match.split('/');
+    return `(?:${match}|${parts.join('|')})`;
   });
 
   // 2. Pre-process optional like apple(s) -> apple(?:s)?

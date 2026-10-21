@@ -548,4 +548,42 @@ Feature: Sleep feature validation
   assert(userDiags.length === 0, `All steps across single, double, and unquoted matched with 0 undefined-step diagnostics (actual: ${userDiags.length})`);
 
   console.log("ALL STACKED DECORATOR VERIFICATION CHECKS PASSED!");
+
+  // 20. Verify Steps with Slash Phrases (e.g. date/time) and Hyphenated Identifiers
+  console.log("\n--- Verifying Steps with Literal Slashes (e.g. date/time) ---");
+  const maximoPy = `
+@then("I verify the Finding '{finding}' for '{insp}' has Completed By date/time matching '{time}' via Maximo REST API.")
+def step_impl_maximo(context, finding, insp, time): pass
+`;
+  const normalizedMaximo = normalizeBehavePythonForCucumber(maximoPy);
+  const maximoSources = [
+    {
+      languageName: "python",
+      content: normalizedMaximo,
+      uri: "file:///example/features/steps/maximo_steps.py"
+    }
+  ];
+
+  const maximoEb = new ExpressionBuilder(adapter);
+  const maximoRes = maximoEb.build(maximoSources, []);
+  assert(maximoRes.errors.length === 0, "ExpressionBuilder produced 0 errors for date/time step");
+  assert(maximoRes.expressionLinks.length === 1, "ExpressionBuilder indexed date/time step");
+
+  const maximoFeature = `
+Feature: Maximo REST API Verification
+  Scenario: Verify finding completed date/time
+    Then I verify the Finding 'AWM-4146 Finding Updated' for 'edi_insp_rv' has Completed By date/time matching 'edi_finding_completed_time_rv' via Maximo REST API.
+`;
+
+  const maximoDiags = getGherkinDiagnostics(maximoFeature, maximoRes.expressionLinks.map((l: any) => l.expression));
+  assert(maximoDiags.length === 0, `date/time step produced 0 undefined-step diagnostics (actual: ${maximoDiags.length})`);
+
+  // Also verify with internal stepMatcher
+  const reMaximo = behavePatternToRegex("I verify the Finding '{finding}' for '{insp}' has Completed By date/time matching '{time}' via Maximo REST API.");
+  assert(
+    reMaximo.test("I verify the Finding 'AWM-4146 Finding Updated' for 'edi_insp_rv' has Completed By date/time matching 'edi_finding_completed_time_rv' via Maximo REST API."),
+    "stepMatcher accurately matches literal 'date/time' with quoted parameters"
+  );
+
+  console.log("ALL SLASH PHRASE & MAXIMO VERIFICATION CHECKS PASSED!");
 });

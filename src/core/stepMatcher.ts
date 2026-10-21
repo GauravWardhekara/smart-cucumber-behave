@@ -71,7 +71,7 @@ export function getStepTextInvariants(pattern: string): string[] {
   }
 
   // Handle slash alternatives like red/blue/green
-  const slashMatch = pattern.match(/\b([a-zA-Z]+)(?:\/([a-zA-Z]+))+\b/);
+  const slashMatch = pattern.match(/\b([a-zA-Z0-9_]+)(?:\/([a-zA-Z0-9_]+))+\b/);
   if (slashMatch) {
     const fullSlash = slashMatch[0];
     const options = fullSlash.split("/");
@@ -90,10 +90,14 @@ function buildBehavePatternRegexBody(
   pattern: string,
   capturePlaceholders: boolean
 ): string {
-  // 1. Pre-process word alternatives like red/blue -> (?:red|blue)
+  // 1. Pre-process word alternatives like red/blue -> (?:red/blue|red|blue)
+  // Preserves literal slash phrases like date/time while also supporting individual alternatives
   let processed = pattern.replace(
-    /\b([a-zA-Z]+)(?:\/([a-zA-Z]+))+\b/g,
-    (match) => `(?:${match.replace(/\//g, "|")})`
+    /\b([a-zA-Z0-9_]+)(?:\/([a-zA-Z0-9_]+))+\b/g,
+    (match) => {
+      const parts = match.split("/");
+      return `(?:${match}|${parts.join("|")})`;
+    }
   );
 
   // 2. Pre-process optional text like apple(s) or (a ) -> (?:s)? or (?:a )?
