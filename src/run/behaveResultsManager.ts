@@ -167,13 +167,13 @@ class BehaveResultsManager {
   }
 
   /**
-   * Generates an Allure Report.
-   * If `allure` CLI is available and `allure-results` exists, runs `allure generate`.
-   * Also generates a standalone interactive Allure-style HTML dashboard.
+   * Generates an Allure Report using the latest Allure CLI (allure-commandline).
+   * If `allure` CLI is not found in PATH, returns success: false with an error message detailing
+   * the installation instructions (e.g. npm install -g allure-commandline@latest or scoop install allure).
    */
   public async generateAllureReport(
     workspaceRoot?: string
-  ): Promise<{ success: boolean; reportPath: string; message: string; usedCli: boolean }> {
+  ): Promise<{ success: boolean; reportPath: string; message: string; usedCli: boolean; missingCli?: boolean }> {
     const root = workspaceRoot || vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
     const reportsDir = path.join(root, "reports", "allure-report");
     if (!fs.existsSync(reportsDir)) {
@@ -182,16 +182,34 @@ class BehaveResultsManager {
 
     const reportIndexPath = path.join(reportsDir, "index.html");
 
-    // 1. Check if allure CLI is available
+    // 1. Check if allure CLI is available in PATH
     let hasAllureCli = false;
+    let allureVersion = "";
     try {
-      cp.execSync("allure --version", { stdio: "ignore" });
+      const verBuf = cp.execSync("allure --version", { stdio: "pipe" });
+      allureVersion = verBuf.toString().trim();
       hasAllureCli = true;
     } catch {
       hasAllureCli = false;
     }
 
-    // 2. Look for allure-results directory
+    if (!hasAllureCli) {
+      // Generate standalone preview so test data is captured
+      const htmlContent = this.generateStandaloneAllureHtml(this.records, root);
+      fs.writeFileSync(reportIndexPath, htmlContent, "utf-8");
+
+      const errorMsg =
+        "Allure CLI was not found in PATH. Please install the latest Allure CLI: 'npm install -g allure-commandline@latest' (or 'scoop install allure') and ensure 'allure' is accessible in PATH. A standalone HTML preview report was generated at reports/allure-report/index.html.";
+      return {
+        success: false,
+        reportPath: reportIndexPath,
+        message: errorMsg,
+        usedCli: false,
+        missingCli: true
+      };
+    }
+
+    // 2. Look for allure-results directory produced by allure-behave
     const candidateResultsDirs = [
       path.join(root, "allure-results"),
       path.join(root, "reports", "allure-results"),
@@ -206,7 +224,7 @@ class BehaveResultsManager {
     }
 
     let usedCli = false;
-    if (hasAllureCli && foundResultsDir) {
+    if (foundResultsDir) {
       try {
         cp.execSync(`allure generate "${foundResultsDir}" -o "${reportsDir}" --clean`, {
           cwd: root,
@@ -218,17 +236,15 @@ class BehaveResultsManager {
       }
     }
 
-    // 3. If Allure CLI was not used or failed, generate the standalone Allure-style HTML report
+    // 3. If Allure CLI was not used or failed (e.g. no allure-results yet), generate the standalone Allure-style HTML report
     if (!usedCli || !fs.existsSync(reportIndexPath)) {
       const htmlContent = this.generateStandaloneAllureHtml(this.records, root);
       fs.writeFileSync(reportIndexPath, htmlContent, "utf-8");
     }
 
     const msg = usedCli
-      ? `Allure Report generated successfully via Allure CLI in ${reportsDir}`
-      : hasAllureCli && !foundResultsDir
-        ? `Generated Allure-style HTML Report in ${reportsDir} (Note: run Behave with '-f allure_behave.formatter:AllureFormatter -o allure-results' to produce native Allure data).`
-        : `Generated Allure-style HTML Report in ${reportsDir} (Tip: Install Allure CLI 'npm install -g allure-commandline' for full CLI capabilities).`;
+      ? `Allure Report generated successfully via Allure CLI ${allureVersion ? `(v${allureVersion})` : ""} in ${reportsDir}`
+      : `Generated Allure-style HTML Report in ${reportsDir}. (Tip: Run Behave with '-f allure_behave.formatter:AllureFormatter -o allure-results' to produce native Allure data for Allure CLI v${allureVersion || "latest"}).`;
 
     return {
       success: true,

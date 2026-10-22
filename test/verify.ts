@@ -590,6 +590,8 @@ Feature: Maximo REST API Verification
   // 21. Verify Cucumber-Behave Tab in Activity Bar & 3-Tab Architecture & Allure Reports
   console.log("\n--- Verifying Activity Bar Placement, 3-Tab Layout & Allure Reports ---");
   const pkgContent = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
+  assert(pkgContent.version === "1.1.0", `package.json version is 1.1.0 (actual: ${pkgContent.version})`);
+  assert(pkgContent.bugs?.url === "https://github.com/GauravWardhekara/smart-cucumber-behave/issues", "package.json has issue reporting url");
   assert(pkgContent.contributes.viewsContainers?.activitybar?.length > 0, "contributes.viewsContainers.activitybar exists");
   assert(
     pkgContent.contributes.viewsContainers.activitybar[0].id === "cucumberBehaveViewContainer",
@@ -660,14 +662,37 @@ Feature: Maximo REST API Verification
   assert(summary.failed === 1, "Summary failed is 1");
 
   // Verify Allure Report Generation produces report HTML
-  const tmpReportsDir = path.resolve(__dirname, "../reports/allure-report");
   const allureResult = await behaveResultsManager.generateAllureReport(path.resolve(__dirname, ".."));
-  assert(allureResult.success === true, "Allure report generation succeeds");
+  if (allureResult.missingCli) {
+    assert(allureResult.success === false, "Returns success false when Allure CLI is missing");
+    assert(allureResult.message.includes("Allure CLI was not found"), "Error message informs user of missing Allure CLI");
+  } else {
+    assert(allureResult.success === true, "Returns success true when Allure CLI is available");
+  }
   assert(fs.existsSync(allureResult.reportPath), "Allure report index.html exists");
   const reportHtml = fs.readFileSync(allureResult.reportPath, "utf-8");
   assert(reportHtml.includes("Cucumber-Behave Test Execution & Allure Report"), "Report contains title");
   assert(reportHtml.includes("User logs in with valid credentials"), "Report contains passed scenario");
   assert(reportHtml.includes("Payment card fails"), "Report contains failed scenario");
+
+  // Verify missing Allure CLI error behavior explicitly
+  const origPath = process.env.PATH;
+  try {
+    process.env.PATH = ""; // Temporarily empty PATH to simulate missing Allure CLI
+    const missingCliResult = await behaveResultsManager.generateAllureReport(path.resolve(__dirname, ".."));
+    assert(missingCliResult.success === false, "Missing Allure CLI returns success: false");
+    assert(missingCliResult.missingCli === true, "Missing Allure CLI sets missingCli: true");
+    assert(missingCliResult.message.includes("Allure CLI was not found in PATH"), "Missing Allure CLI message contains PATH error");
+    assert(missingCliResult.message.includes("npm install -g allure-commandline@latest"), "Missing Allure CLI message includes install command");
+  } finally {
+    process.env.PATH = origPath;
+  }
+
+  // Clean up reports dir generated during test
+  const tmpReportsDir = path.resolve(__dirname, "../reports");
+  if (fs.existsSync(tmpReportsDir)) {
+    fs.rmSync(tmpReportsDir, { recursive: true, force: true });
+  }
 
   console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");
 });

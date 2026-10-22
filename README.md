@@ -2,9 +2,12 @@
 
 [![Visual Studio Marketplace](https://img.shields.io/badge/VS%20Code-Smart%20Cucumber--Behave-blue.svg)](https://marketplace.visualstudio.com)
 [![Open VSX](https://img.shields.io/badge/Open%20VSX-Smart%20Cucumber--Behave-purple.svg)](https://open-vsx.org)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/GauravWardhekara/smart-cucumber-behave/releases)
+[![Issues](https://img.shields.io/github/issues/GauravWardhekara/smart-cucumber-behave.svg)](https://github.com/GauravWardhekara/smart-cucumber-behave/issues)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cucumber](https://img.shields.io/badge/Cucumber-Language%20Server-green.svg)](https://cucumber.io/)
 [![Python: Behave](https://img.shields.io/badge/Python-Behave%20BDD-brightgreen.svg)](https://behave.readthedocs.io/)
+[![Allure Report](https://img.shields.io/badge/Allure-Report%20Supported-orange.svg)](https://allurereport.org/)
 
 A complete, high-performance Visual Studio Code extension integrating the **official [Cucumber Language Server](https://github.com/cucumber/vscode)** with the advanced **Smart Behave Runner** test execution engine and fine-grained **Custom Gherkin Formatter**.
 
@@ -131,8 +134,61 @@ Located directly on the VS Code / Antigravity IDE **Activity Bar** under the **`
 - **Status Filter & Search**: Filter by Passed/Failed and instant search.
 - **Expandable Failure Details**: For failed tests, inspect the exact failure step, error message, and traceback. Click to jump to the scenario in code.
 - **Global Allure Report Generation & Viewer**:
-  - **Generate Allure Report**: Generates official Allure reports when `allure` CLI is available, and always generates a standalone, interactive Allure-style HTML dashboard report in `reports/allure-report/index.html`.
+  - **Generate Allure Report**: Generates official Allure reports using the latest Allure CLI, and automatically creates an interactive standalone HTML dashboard report in `reports/allure-report/index.html`.
   - **View Report**: One-click button to open the generated Allure report in your default browser.
+
+---
+
+### 📊 Allure Reporting & Installation Requirements
+
+Smart Cucumber-Behave integrates with the **latest version of Allure** (Allure 2.x) to generate rich, interactive test analytics and dashboards.
+
+#### 1. Prerequisites: Install Latest Allure CLI
+To generate and serve native Allure reports, install the latest version of the Allure command-line tool:
+* **npm (Recommended - Cross-Platform)**:
+  ```bash
+  npm install -g allure-commandline@latest
+  ```
+* **Windows (Scoop)**:
+  ```powershell
+  scoop install allure
+  ```
+* **Windows (Chocolatey)**:
+  ```powershell
+  choco install allure-commandline
+  ```
+* **macOS / Linux (Homebrew)**:
+  ```bash
+  brew install allure
+  ```
+* **Direct Binary Download**:
+  Download the latest distribution from the [Allure Framework Releases](https://github.com/allure-framework/allure2/releases).
+
+Verify that `allure` is in your system `PATH`:
+```bash
+allure --version
+```
+
+#### 2. Install Python `allure-behave`
+In your project's active Python environment, install the Behave Allure formatter:
+```bash
+pip install allure-behave
+```
+
+#### 3. Running with Allure Formatter
+To output native Allure test result files, run Behave with the formatter flag:
+```bash
+behave -f allure_behave.formatter:AllureFormatter -o allure-results
+```
+
+> [!WARNING]
+> **Error Handling When Allure Is Not Found**:
+> If the `allure` command is not detected in your system `PATH` when you click **Generate Allure**, the extension will display an error alert:
+> ```
+> Allure CLI was not found in PATH. Please install the latest Allure CLI: 'npm install -g allure-commandline@latest' (or 'scoop install allure').
+> ```
+> An action button directly links to the [Allure Installation Documentation](https://allurereport.org/docs/install/).
+> As an automatic fallback, a standalone, interactive HTML preview report is also generated in `reports/allure-report/index.html` so you can still review your test metrics immediately.
 
 ---
 
@@ -211,12 +267,30 @@ Fully aligned with the official [Behave Documentation](https://behave.readthedoc
 | `smartBehave.debug` | `Smart Behave: Debug` | Debug the selected feature or scenario with `debugpy`. |
 | `smartBehave.cancelRun` | `Smart Behave: Cancel Run` | Terminate running test process with confirmation. |
 | `smartBehave.rerunLastRun` | `Smart Behave: Rerun Last Run` | Rerun the last executed test session. |
-| `smartBehave.showLiveRun` | `Smart Behave: Show Live Run Panel` | Focus the Cucumber-Behave Live Run dashboard. |
+| `smartBehave.showLiveRun` | `Smart Behave: Show Cucumber-Behave Panel` | Focus the Cucumber-Behave Activity Bar / Sidebar view. |
+| `smartBehave.generateAllureReport` | `Cucumber-Behave: Generate Allure Report` | Generate Allure report using Allure CLI or interactive HTML generator. |
+| `smartBehave.viewAllureReport` | `Cucumber-Behave: View Allure Report` | Open the generated Allure report in default browser. |
+| `smartBehave.clearResults` | `Cucumber-Behave: Clear Test Results History` | Clear saved test execution history. |
+| `smartBehave.refreshDiscovery` | `Cucumber-Behave: Refresh Feature Discovery` | Rescan workspace and `features/` directory for feature files. |
 | `smartBehave.generateStepDefinition` | `Smart Behave: Generate Step Definition in Python` | Generate Python step definition code snippet. |
 | `smartBehave.runWithTags` | `Smart Cucumber-Behave: Run with Tags (--tags)` | Prompt for Behave tag expression (e.g. `@smoke and not @slow`) and execute tests. |
 | `smartBehave.runDryRun` | `Smart Cucumber-Behave: Dry Run (--dry-run)` | Validate step definitions and matchers without executing test logic. |
 | `smartBehave.runWip` | `Smart Cucumber-Behave: Run Work-In-Progress (--wip)` | Execute scenarios tagged `@wip` and stop on first failure. |
 | `smartBehave.openEnvironmentFile` | `Smart Cucumber-Behave: Open/Create features/environment.py` | Open or generate `features/environment.py` with Behave lifecycle hooks and fixtures. |
+
+---
+
+## 🐛 Issues, Feature Requests & Feedback
+
+We welcome bug reports, suggestions, and feature contributions!
+
+* **Issue Tracker**: [https://github.com/GauravWardhekara/smart-cucumber-behave/issues](https://github.com/GauravWardhekara/smart-cucumber-behave/issues)
+* When reporting issues, please include:
+  1. Operating System (Windows, macOS, Linux)
+  2. VS Code / Antigravity IDE version
+  3. Python version & Behave version (`behave --version`)
+  4. Minimal reproducible `.feature` and step definition code
+  5. Any output logs from the **Output** channel (`Smart Behave`) or browser console.
 
 ---
 

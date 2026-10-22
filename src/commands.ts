@@ -368,7 +368,17 @@ export function registerCommands(context: vscode.ExtensionContext): void {
               await behaveResultsManager.viewAllureReport();
             }
           } else {
-            void vscode.window.showErrorMessage(res.message);
+            void vscode.window
+              .showErrorMessage(res.message, "Install Instructions", "View HTML Preview")
+              .then(async (ans) => {
+                if (ans === "Install Instructions") {
+                  await vscode.env.openExternal(
+                    vscode.Uri.parse("https://allurereport.org/docs/install/")
+                  );
+                } else if (ans === "View HTML Preview") {
+                  await behaveResultsManager.viewAllureReport();
+                }
+              });
           }
         }
       },

@@ -1404,7 +1404,21 @@
 
           case "allureGenerated":
             allureStatusText.style.display = "block";
-            allureStatusText.textContent = msg.message;
+            if (msg.success) {
+              allureStatusText.innerHTML = `<span style="color:var(--pass-color); font-weight:600;"><i class="codicon codicon-check"></i> ${msg.message}</span>`;
+            } else {
+              allureStatusText.innerHTML = `
+                <div style="background:rgba(241,76,76,0.15); border:1px solid rgba(241,76,76,0.4); padding:8px 10px; border-radius:4px; margin-top:6px;">
+                  <div style="color:var(--fail-color); font-weight:600; display:flex; align-items:center; gap:6px;">
+                    <i class="codicon codicon-error"></i> Allure CLI Not Found
+                  </div>
+                  <div style="font-size:11px; color:var(--vscode-foreground); margin-top:4px;">${msg.message}</div>
+                  <div style="margin-top:6px; font-family:monospace; background:rgba(0,0,0,0.3); padding:4px 6px; border-radius:2px; font-size:11px; user-select:all;">
+                    npm install -g allure-commandline@latest
+                  </div>
+                </div>
+              `;
+            }
             break;
 
           case "run_started":
