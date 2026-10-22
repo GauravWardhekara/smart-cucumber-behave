@@ -26,8 +26,11 @@ A complete, high-performance Visual Studio Code extension integrating the **offi
    - Document structure and semantic tokens.
 
 2. **Smart Behave Test Runner & Execution Platform**:
+   - **Activity Bar & Primary Side Bar View**: Dedicated **`Cucumber-Behave`** view on the Activity Bar, divided into 3 dedicated workflow tabs:
+     - 🔍 **Discovery Tab**: Real-time search of feature files in `features/` and workspace, tree view of Features, Scenarios, and Steps, stored default configuration & capability (`caps_file`) selection, and stop controls.
+     - ⚡ **Execution Tab**: Current tests under execution, live step progression, real-time streaming ANSI terminal logs, and immediate stop controls.
+     - 📊 **Results Tab**: Completed test runs sorted by Feature, Scenario, and Date, expandable failure tracebacks, and global **Allure Report** generation and viewer.
    - **Native VS Code Test Explorer (`TestController`)**: Instant zero-latency discovery of Features, Scenarios, and Examples with pass/fail hierarchy propagation (when a scenario fails, the scenario and whole feature are marked failed; when all pass, both pass).
-   - **Cucumber-Behave Live Run Panel**: Dedicated bottom panel tab (**`Cucumber-Behave` &rarr; `Live Run`**) with streaming logs, status indicators, elapsed timers, a **Cancel Run** button (with warning/confirmation modal to terminate lingering processes), and a **Rerun Last Run** button.
    - **Multi-Language Interactive Configuration Screen**: Multi-runtime diagnostic prober (Python, Node.js, Java, .NET, Ruby, PHP, Rust, Go), live Gherkin formatter preview, Cucumber settings, and Behave test runner settings.
    - **In-Editor CodeLens**: `▶ Run` and `🐞 Debug` buttons directly above Features, Scenarios, and Example rows.
    - **Full Debugging (`debugpy`)**: Breakpoint debugging inside step functions, hooks, and environment fixtures with `justMyCode` stepping.
@@ -104,11 +107,32 @@ Open anytime via **`Smart Behave: Open Configuration Screen`** (`smartBehave.ope
 
 ---
 
-### ⚡ Cucumber-Behave Live Run Panel
-Located in the bottom panel under the **`Cucumber-Behave`** tab:
-- Real-time streaming logs from test execution.
-- **Stop Button**: Cancel executing test suites with a warning/confirmation prompt that terminates child test processes cleanly.
-- **Rerun Button**: Quickly rerun the exact same test selection with a single click.
+### ⚡ Cucumber-Behave Activity Bar & 3-Tab Primary Side Bar
+Located directly on the VS Code / Antigravity IDE **Activity Bar** under the **`Cucumber-Behave`** icon, dividing test operations into three clean, dedicated tabs:
+
+#### 1. 🔍 Discovery Tab (Test Discovery)
+- **Search Features**: Instant dynamic search filtering across `.feature` files in the `features/` directory and across workspace folders.
+- **Tree View**: Hierarchical tree with **Feature** at top, **Scenario** under it, and clickable **Steps** (`Given`, `When`, `Then`, `And`, `But`).
+- **Click to Inspect Steps**: Click any scenario to toggle and view its test steps. Click any step to open the `.feature` file directly at that step.
+- **Run with Defaults or Caps File**: Launch test runs using your stored default configuration or choose any detected capability file (`caps_file` like `android_caps_v1.json`, `ios_caps_v5.json`) from the toolbar dropdown.
+- **Stop In-Progress Runs**: Prominent **Stop** button appears if an execution is already in progress, letting you cancel tests safely.
+- **Go to Execution Tab**: Instant one-click shortcut to switch to live execution monitoring.
+
+#### 2. ⚡ Execution Tab (Current Tests & Realtime Logs)
+- **Current Tests Under Execution**: Live progress tree showing the active Feature, Scenarios, and Steps with spinning indicators, green checkmarks, and red failure badges.
+- **Real-Time Streaming Terminal Logs**: High-performance streaming console displaying Behave terminal output as tests execute.
+- **Console Find Bar**: Quick search inside streaming logs with match counts and next/previous navigation.
+- **Stop Execution**: Immediate stop button to terminate lingering test processes.
+- **Rerun & Clear**: Quick rerun of the last test selection and log clearing.
+
+#### 3. 📊 Results Tab (Completed Tests & Allure Reports)
+- **Completed Tests List**: Full history of executed test runs with status indicators (Passed, Failed, Cancelled), duration, and timestamps.
+- **Flexible Sorting**: Sort completed tests by **Date (Newest/Oldest First)**, **Feature Name**, or **Scenario Name**.
+- **Status Filter & Search**: Filter by Passed/Failed and instant search.
+- **Expandable Failure Details**: For failed tests, inspect the exact failure step, error message, and traceback. Click to jump to the scenario in code.
+- **Global Allure Report Generation & Viewer**:
+  - **Generate Allure Report**: Generates official Allure reports when `allure` CLI is available, and always generates a standalone, interactive Allure-style HTML dashboard report in `reports/allure-report/index.html`.
+  - **View Report**: One-click button to open the generated Allure report in your default browser.
 
 ---
 

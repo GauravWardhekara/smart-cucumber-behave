@@ -586,4 +586,88 @@ Feature: Maximo REST API Verification
   );
 
   console.log("ALL SLASH PHRASE & MAXIMO VERIFICATION CHECKS PASSED!");
+
+  // 21. Verify Cucumber-Behave Tab in Activity Bar & 3-Tab Architecture & Allure Reports
+  console.log("\n--- Verifying Activity Bar Placement, 3-Tab Layout & Allure Reports ---");
+  const pkgContent = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
+  assert(pkgContent.contributes.viewsContainers?.activitybar?.length > 0, "contributes.viewsContainers.activitybar exists");
+  assert(
+    pkgContent.contributes.viewsContainers.activitybar[0].id === "cucumberBehaveViewContainer",
+    "activitybar container id is cucumberBehaveViewContainer"
+  );
+  assert(
+    pkgContent.contributes.viewsContainers.activitybar[0].title === "Cucumber-Behave",
+    "activitybar container title is Cucumber-Behave"
+  );
+  assert(
+    pkgContent.contributes.views?.cucumberBehaveViewContainer?.length > 0,
+    "contributes.views.cucumberBehaveViewContainer exists"
+  );
+  assert(
+    pkgContent.contributes.views.cucumberBehaveViewContainer[0].id === "smartBehave.liveRun",
+    "webview view id is smartBehave.liveRun"
+  );
+
+  // Verify Results Manager & Standalone Allure Report Generation
+  const { behaveResultsManager } = require("../src/run/behaveResultsManager");
+  behaveResultsManager.clearRecords();
+  behaveResultsManager.recordScenario({
+    featureName: "Login Feature",
+    featureFilePath: "/workspace/features/login.feature",
+    relativeFilePath: "features/login.feature",
+    scenarioName: "User logs in with valid credentials",
+    scenarioLine: 10,
+    status: "passed",
+    durationMs: 1450,
+    timestamp: Date.now() - 5000,
+    capsFile: "configs/android_caps_v1.json",
+    totalSteps: 3,
+    passedSteps: 3,
+    failedSteps: 0,
+    steps: [
+      { keyword: "Given", text: "user is on login page", status: "passed" },
+      { keyword: "When", text: "user enters credentials", status: "passed" },
+      { keyword: "Then", text: "dashboard is shown", status: "passed" }
+    ]
+  });
+
+  behaveResultsManager.recordScenario({
+    featureName: "Checkout Feature",
+    featureFilePath: "/workspace/features/checkout.feature",
+    relativeFilePath: "features/checkout.feature",
+    scenarioName: "Payment card fails",
+    scenarioLine: 25,
+    status: "failed",
+    durationMs: 2300,
+    timestamp: Date.now(),
+    capsFile: "configs/android_caps_v1.json",
+    errorMessage: "AssertionError: Payment card declined",
+    totalSteps: 2,
+    passedSteps: 1,
+    failedSteps: 1,
+    steps: [
+      { keyword: "Given", text: "user has cart items", status: "passed" },
+      { keyword: "When", text: "user pays with expired card", status: "failed", error: "Card declined" }
+    ]
+  });
+
+  const records = behaveResultsManager.getRecords("date_desc");
+  assert(records.length === 2, "behaveResultsManager has 2 records");
+  assert(records[0].scenarioName === "Payment card fails", "Most recent record is Payment card fails");
+  const summary = behaveResultsManager.getSummary();
+  assert(summary.total === 2, "Summary total is 2");
+  assert(summary.passed === 1, "Summary passed is 1");
+  assert(summary.failed === 1, "Summary failed is 1");
+
+  // Verify Allure Report Generation produces report HTML
+  const tmpReportsDir = path.resolve(__dirname, "../reports/allure-report");
+  const allureResult = await behaveResultsManager.generateAllureReport(path.resolve(__dirname, ".."));
+  assert(allureResult.success === true, "Allure report generation succeeds");
+  assert(fs.existsSync(allureResult.reportPath), "Allure report index.html exists");
+  const reportHtml = fs.readFileSync(allureResult.reportPath, "utf-8");
+  assert(reportHtml.includes("Cucumber-Behave Test Execution & Allure Report"), "Report contains title");
+  assert(reportHtml.includes("User logs in with valid credentials"), "Report contains passed scenario");
+  assert(reportHtml.includes("Payment card fails"), "Report contains failed scenario");
+
+  console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");
 });

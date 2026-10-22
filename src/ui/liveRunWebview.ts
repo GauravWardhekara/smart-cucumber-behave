@@ -4,32 +4,82 @@ import * as vscode from "vscode";
 import { LOG } from "../log";
 import {
   setLiveRunPanelGateway,
-  type LiveRunPanelGateway
+  type LiveRunPanelGateway,
+  getBehaveHierarchyStoreRef
 } from "../run/behaveRunnerContext";
-import { logBehaveRunCancel } from "../run/behaveRunCancellation";
+import {
+  cancelActiveBehaveRun,
+  isBehaveRunActive,
+  logBehaveRunCancel
+} from "../run/behaveRunCancellation";
 import {
   isLivePanelFromWebviewMessage,
   LIVE_PANEL_PROTOCOL_VERSION,
   type LivePanelToWebviewMessage
 } from "./livePanelProtocol";
+import { parseFeatureFile } from "../core/featureParser";
+import { detectConfigFiles } from "../run/behaveConfigFile";
+import { settings } from "../settings";
+import {
+  getFeatureHierarchyNodeForPath,
+  getScenarioNodeAtLine
+} from "../run/behaveHierarchyQueries";
+import {
+  resolveBehaveFeatureChildrenIfNeeded,
+  type BehaveHierarchyNode
+} from "../run/behaveHierarchyModel";
+import { runBehaveHierarchySelection } from "../run/behaveRunExecution";
+import { behaveResultsManager } from "../run/behaveResultsManager";
 
 export const PRIMARY_LIVE_RUN_VIEW_TYPE = "smartBehave.liveRun";
 
 const LIVE_PANEL_CAPTURE_KEY = "behaveRunner.livePanelCapture.v1";
-/** Rough budget for `workspaceState` (limit is ~1MB per key). */
 const MAX_CAPTURE_JSON_BYTES = 750_000;
 
 let workspaceStateForLivePanel: vscode.Memento | undefined;
-
-/** Messages posted to the Live panel during the current / last run (for workspace restore). */
 let livePanelCapture: unknown[] = [];
+let activeWebviewView: vscode.WebviewView | undefined;
 
-/** Opens the bottom panel and focuses the Live run view (e.g. when starting Run/Debug). */
+export interface DiscoveredStep {
+  keyword: string;
+  text: string;
+  line: number;
+}
+
+export interface DiscoveredScenario {
+  name: string;
+  line: number;
+  isOutline: boolean;
+  steps: DiscoveredStep[];
+}
+
+export interface DiscoveredFeature {
+  name: string;
+  filePath: string;
+  relativeFilePath: string;
+  line: number;
+  scenarios: DiscoveredScenario[];
+}
+
+export interface DiscoveryPayload {
+  features: DiscoveredFeature[];
+  capsFiles: string[];
+  defaultConfig?: string;
+  isRunning: boolean;
+}
+
+/** Opens the activity bar / primary side bar view (e.g. when starting Run/Debug). */
 export async function revealLiveRunPanel(): Promise<void> {
   try {
     await vscode.commands.executeCommand("smartBehave.liveRun.focus");
   } catch {
     /* view not ready */
+  }
+}
+
+export function notifyActiveWebview(message: LivePanelToWebviewMessage): void {
+  if (activeWebviewView) {
+    void activeWebviewView.webview.postMessage(message);
   }
 }
 
@@ -144,13 +194,103 @@ function createLivePanelGateway(
   };
 }
 
-export function registerLiveRunWebview(
-  context: vscode.ExtensionContext
-): void {
+/**
+ * Scans workspace folders to discover all features, scenarios, steps, and caps config files.
+ */
+export async function collectDiscoveryData(): Promise<DiscoveryPayload> {
+  const wsFolders = vscode.workspace.workspaceFolders ?? [];
+  const features: DiscoveredFeature[] = [];
+  const capsFilesSet = new Set<string>();
+  let defaultConfig: string | undefined;
+
+  for (const folder of wsFolders) {
+    const root = folder.uri.fsPath;
+    const detected = detectConfigFiles(root);
+    for (const c of detected) {
+      capsFilesSet.add(c);
+    }
+    const def = settings.defaultConfigFile(folder.uri)?.trim();
+    if (def) {
+      defaultConfig = def;
+    }
+
+    try {
+      const pattern = new vscode.RelativePattern(folder, "**/*.feature");
+      const uris = await vscode.workspace.findFiles(pattern, "**/node_modules/**");
+      for (const uri of uris) {
+        try {
+          const content = fs.readFileSync(uri.fsPath, "utf-8");
+          const parsed = parseFeatureFile(uri.fsPath, content);
+          const relPath = path.relative(root, uri.fsPath).replace(/\\/g, "/");
+          const scenarios: DiscoveredScenario[] = (parsed.scenarios || []).map((sc) => ({
+            name: sc.name,
+            line: sc.line,
+            isOutline: sc.isOutline,
+            steps: (sc.steps || []).map((st) => ({
+              keyword: st.keyword,
+              text: st.text,
+              line: st.line
+            }))
+          }));
+
+          features.push({
+            name: parsed.name || path.basename(uri.fsPath, ".feature"),
+            filePath: uri.fsPath,
+            relativeFilePath: relPath,
+            line: parsed.line,
+            scenarios
+          });
+        } catch (err) {
+          LOG.warn("Could not parse feature for discovery:", uri.fsPath, err);
+        }
+      }
+    } catch (findErr) {
+      LOG.warn("Could not find feature files in folder:", root, findErr);
+    }
+  }
+
+  features.sort((a, b) => {
+    const aInFeatures = a.relativeFilePath.startsWith("features/");
+    const bInFeatures = b.relativeFilePath.startsWith("features/");
+    if (aInFeatures && !bInFeatures) return -1;
+    if (!aInFeatures && bInFeatures) return 1;
+    return a.relativeFilePath.localeCompare(b.relativeFilePath);
+  });
+
+  if (!defaultConfig && capsFilesSet.size > 0) {
+    defaultConfig = Array.from(capsFilesSet)[0];
+  }
+
+  return {
+    features,
+    capsFiles: Array.from(capsFilesSet).sort(),
+    defaultConfig,
+    isRunning: isBehaveRunActive()
+  };
+}
+
+async function postDiscoveryDataToWebview(webview: vscode.Webview): Promise<void> {
+  const payload = await collectDiscoveryData();
+  void webview.postMessage({
+    type: "discoveryData",
+    payload
+  });
+}
+
+function postResultsDataToWebview(webview: vscode.Webview): void {
+  const records = behaveResultsManager.getRecords();
+  const summary = behaveResultsManager.getSummary();
+  void webview.postMessage({
+    type: "resultsData",
+    records,
+    summary
+  });
+}
+
+export function registerLiveRunWebview(context: vscode.ExtensionContext): void {
   workspaceStateForLivePanel = context.workspaceState;
   const provider = new LiveRunWebviewProvider(context.extensionUri);
 
-  // Register smartBehave.liveRun view provider
   try {
     context.subscriptions.push(
       vscode.window.registerWebviewViewProvider(PRIMARY_LIVE_RUN_VIEW_TYPE, provider, {
@@ -160,6 +300,30 @@ export function registerLiveRunWebview(
   } catch (err) {
     LOG.warn("Failed to register primary liveRun view provider:", err);
   }
+
+  // Watch for test results changes and forward to webview
+  context.subscriptions.push(
+    behaveResultsManager.onDidChange(() => {
+      if (activeWebviewView) {
+        postResultsDataToWebview(activeWebviewView.webview);
+      }
+    })
+  );
+
+  // Watch for feature file changes to keep discovery up-to-date
+  const watcher = vscode.workspace.createFileSystemWatcher("**/*.feature");
+  context.subscriptions.push(
+    watcher,
+    watcher.onDidCreate(() => {
+      if (activeWebviewView) void postDiscoveryDataToWebview(activeWebviewView.webview);
+    }),
+    watcher.onDidChange(() => {
+      if (activeWebviewView) void postDiscoveryDataToWebview(activeWebviewView.webview);
+    }),
+    watcher.onDidDelete(() => {
+      if (activeWebviewView) void postDiscoveryDataToWebview(activeWebviewView.webview);
+    })
+  );
 }
 
 function loadLiveRunHtml(extensionUri: vscode.Uri): string {
@@ -167,7 +331,7 @@ function loadLiveRunHtml(extensionUri: vscode.Uri): string {
   try {
     return fs.readFileSync(filePath, "utf-8");
   } catch {
-    return `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:12px">Behave Runner: could not read <code>media/liveRunPanel.html</code>.</body></html>`;
+    return `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:12px">Cucumber-Behave: could not read <code>media/liveRunPanel.html</code>.</body></html>`;
   }
 }
 
@@ -190,10 +354,9 @@ function buildLiveRunPanelHtml(
     "default-src 'none'",
     `style-src ${webview.cspSource} 'unsafe-inline'`,
     `font-src ${webview.cspSource}`,
-    useBundle
-      ? `script-src ${webview.cspSource}`
-      : "script-src 'unsafe-inline'"
+    `script-src ${webview.cspSource} 'unsafe-inline'`
   ].join("; ");
+
   html = html.replace("BEHAVE_RUN_CSP_PLACEHOLDER", csp);
   html = html.replace(
     "BEHAVE_RUN_CODICON_LINK_PLACEHOLDER",
@@ -203,14 +366,13 @@ function buildLiveRunPanelHtml(
     "BEHAVE_RUN_SCRIPT_PLACEHOLDER",
     useBundle
       ? `<script src="${scriptSrc}"></script>`
-      : "<!-- Behave Runner: run npm run build:webview to produce media/liveRunPanel.bundle.js -->"
+      : ""
   );
   return html;
 }
 
 class LiveRunWebviewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
-  /** Must be single-shot per webview; stacking listeners duplicates replay + console output. */
   private webviewMessageDisposable?: vscode.Disposable;
 
   constructor(private readonly extensionUri: vscode.Uri) {}
@@ -220,6 +382,8 @@ class LiveRunWebviewProvider implements vscode.WebviewViewProvider {
     this.webviewMessageDisposable = undefined;
 
     this.view = webviewView;
+    activeWebviewView = webviewView;
+
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this.extensionUri]
@@ -247,6 +411,9 @@ class LiveRunWebviewProvider implements vscode.WebviewViewProvider {
       if (this.view === webviewView) {
         setLiveRunPanelGateway(undefined);
         this.view = undefined;
+        if (activeWebviewView === webviewView) {
+          activeWebviewView = undefined;
+        }
       }
     });
   }
@@ -268,6 +435,91 @@ function postStoredLivePanelReplay(webview: vscode.Webview): void {
   void webview.postMessage(replay);
 }
 
+async function handleRunTestFromWebview(
+  webview: vscode.Webview,
+  msg: {
+    filePath: string;
+    scenarioName?: string;
+    scenarioLine?: number;
+    capsFile?: string;
+  }
+): Promise<void> {
+  if (isBehaveRunActive()) {
+    void vscode.window.showWarningMessage(
+      "A test execution is already in progress. Please stop it before launching a new one."
+    );
+    return;
+  }
+
+  const store = getBehaveHierarchyStoreRef();
+  if (!store) {
+    void vscode.window.showErrorMessage("Cucumber-Behave: Test store is not ready.");
+    return;
+  }
+
+  const featureNode = await getFeatureHierarchyNodeForPath(store, msg.filePath);
+  if (!featureNode) {
+    void vscode.window.showErrorMessage(
+      `Cucumber-Behave: Feature not found for ${path.basename(msg.filePath)}`
+    );
+    return;
+  }
+
+  let nodesToRun: BehaveHierarchyNode[] = [featureNode];
+  if (msg.scenarioName || typeof msg.scenarioLine === "number") {
+    await resolveBehaveFeatureChildrenIfNeeded(featureNode);
+    let targetScenario: BehaveHierarchyNode | undefined;
+    if (typeof msg.scenarioLine === "number") {
+      targetScenario = await getScenarioNodeAtLine(store, msg.filePath, msg.scenarioLine);
+    }
+    if (!targetScenario && msg.scenarioName) {
+      for (const ch of featureNode.children.values()) {
+        if (ch.label === msg.scenarioName || ch.label.includes(msg.scenarioName)) {
+          targetScenario = ch;
+          break;
+        }
+      }
+    }
+    if (targetScenario) {
+      nodesToRun = [targetScenario];
+    }
+  }
+
+  // Switch webview to Execution tab
+  void webview.postMessage({
+    type: "switchToTab",
+    tab: "execution"
+  });
+
+  const cts = new vscode.CancellationTokenSource();
+  try {
+    await runBehaveHierarchySelection(
+      nodesToRun,
+      cts.token,
+      msg.capsFile || undefined
+    );
+  } finally {
+    cts.dispose();
+  }
+}
+
+async function handleOpenFileFromWebview(filePath: string, line?: number): Promise<void> {
+  if (!filePath) return;
+  try {
+    const uri = vscode.Uri.file(filePath);
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const line0 = Math.max(0, Math.min((line ?? 0), doc.lineCount - 1));
+    const pos = doc.lineAt(line0).range.start;
+    await vscode.window.showTextDocument(doc, {
+      selection: new vscode.Selection(pos, pos),
+      preserveFocus: false,
+      preview: false
+    });
+  } catch (err) {
+    LOG.warn("Failed to open file from webview:", filePath, err);
+  }
+}
+
 async function handleLiveRunWebviewMessage(
   webview: vscode.Webview,
   msg: unknown
@@ -275,61 +527,128 @@ async function handleLiveRunWebviewMessage(
   if (!isLivePanelFromWebviewMessage(msg)) {
     return;
   }
+
   if (msg.type === "livePanelReady") {
     void webview.postMessage({
       type: "protocol",
       version: LIVE_PANEL_PROTOCOL_VERSION
     });
+    void postDiscoveryDataToWebview(webview);
+    postResultsDataToWebview(webview);
+    void webview.postMessage({
+      type: "runStatus",
+      isRunning: isBehaveRunActive()
+    });
     postStoredLivePanelReplay(webview);
     return;
   }
-  if (msg.type === "stopRun") {
-    logBehaveRunCancel(
-      "Live panel Stop: posting behaveRunner.cancelRun (webview → extension host)"
-    );
-    await vscode.commands.executeCommand("behaveRunner.cancelRun");
+
+  if (msg.type === "getDiscoveryData") {
+    await postDiscoveryDataToWebview(webview);
     return;
   }
+
+  if (msg.type === "runTest") {
+    await handleRunTestFromWebview(webview, msg);
+    return;
+  }
+
+  if (msg.type === "stopRun" || msg.type === "stopTest") {
+    logBehaveRunCancel(
+      "Cucumber-Behave Stop requested from webview"
+    );
+    cancelActiveBehaveRun();
+    void webview.postMessage({ type: "runCancelled" });
+    void webview.postMessage({ type: "runStatus", isRunning: false });
+    return;
+  }
+
   if (msg.type === "rerunLastRun") {
+    void webview.postMessage({
+      type: "switchToTab",
+      tab: "execution"
+    });
     await vscode.commands.executeCommand("behaveRunner.rerunLastRun");
     return;
   }
-  if (msg.type !== "revealStep") {
+
+  if (msg.type === "openFile") {
+    await handleOpenFileFromWebview(msg.filePath, msg.line);
     return;
   }
-  const fsPath =
-    typeof msg.path === "string"
-      ? msg.path
-      : typeof msg.gotoPath === "string"
-        ? msg.gotoPath
-        : "";
-  let lineRaw = NaN;
-  if (typeof msg.line === "number" && Number.isFinite(msg.line)) {
-    lineRaw = Math.floor(msg.line);
-  } else if (typeof msg.gotoLine === "number" && Number.isFinite(msg.gotoLine)) {
-    lineRaw = Math.floor(msg.gotoLine);
-  } else if (typeof msg.line === "string") {
-    const n = Number.parseInt(msg.line, 10);
-    lineRaw = Number.isNaN(n) ? NaN : n;
-  } else if (typeof msg.gotoLine === "string") {
-    const n = Number.parseInt(msg.gotoLine, 10);
-    lineRaw = Number.isNaN(n) ? NaN : n;
-  }
-  if (!fsPath || Number.isNaN(lineRaw)) {
+
+  if (msg.type === "getResultsData") {
+    postResultsDataToWebview(webview);
     return;
   }
-  const line0 = Math.max(0, lineRaw);
-  try {
-    const uri = vscode.Uri.file(fsPath);
-    const doc = await vscode.workspace.openTextDocument(uri);
-    const capped = Math.min(line0, Math.max(0, doc.lineCount - 1));
-    const pos = doc.lineAt(capped).range.start;
-    await vscode.window.showTextDocument(doc, {
-      selection: new vscode.Selection(pos, pos),
-      preserveFocus: false,
-      preview: false
+
+  if (msg.type === "clearResults") {
+    behaveResultsManager.clearRecords();
+    postResultsDataToWebview(webview);
+    return;
+  }
+
+  if (msg.type === "generateAllure") {
+    const res = await behaveResultsManager.generateAllureReport();
+    void webview.postMessage({
+      type: "allureGenerated",
+      success: res.success,
+      message: res.message,
+      reportPath: res.reportPath,
+      usedCli: res.usedCli
     });
-  } catch {
-    /* file missing or inaccessible */
+    postResultsDataToWebview(webview);
+    if (res.success) {
+      void vscode.window.showInformationMessage(res.message, "View Allure Report").then((ans) => {
+        if (ans === "View Allure Report") {
+          void behaveResultsManager.viewAllureReport();
+        }
+      });
+    } else {
+      void vscode.window.showErrorMessage(res.message);
+    }
+    return;
+  }
+
+  if (msg.type === "viewAllure") {
+    await behaveResultsManager.viewAllureReport();
+    return;
+  }
+
+  if (msg.type === "setDefaultCaps") {
+    if (msg.capsFile) {
+      void vscode.workspace
+        .getConfiguration("behave")
+        .update("defaultConfigFile", msg.capsFile, vscode.ConfigurationTarget.Workspace);
+      void vscode.window.showInformationMessage(
+        `Default capability config set to: ${msg.capsFile}`
+      );
+    }
+    return;
+  }
+
+  if (msg.type === "revealStep") {
+    const fsPath =
+      typeof msg.path === "string"
+        ? msg.path
+        : typeof msg.gotoPath === "string"
+          ? msg.gotoPath
+          : "";
+    let lineRaw = NaN;
+    if (typeof msg.line === "number" && Number.isFinite(msg.line)) {
+      lineRaw = Math.floor(msg.line);
+    } else if (typeof msg.gotoLine === "number" && Number.isFinite(msg.gotoLine)) {
+      lineRaw = Math.floor(msg.gotoLine);
+    } else if (typeof msg.line === "string") {
+      const n = Number.parseInt(msg.line, 10);
+      lineRaw = Number.isNaN(n) ? NaN : n;
+    } else if (typeof msg.gotoLine === "string") {
+      const n = Number.parseInt(msg.gotoLine, 10);
+      lineRaw = Number.isNaN(n) ? NaN : n;
+    }
+    if (!fsPath || Number.isNaN(lineRaw)) {
+      return;
+    }
+    await handleOpenFileFromWebview(fsPath, lineRaw);
   }
 }

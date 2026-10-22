@@ -331,20 +331,20 @@
       }
     },
     "viewsContainers": {
-      "panel": [
+      "activitybar": [
         {
-          "id": "smartBehaveExecutionPanel",
+          "id": "cucumberBehaveViewContainer",
           "title": "Cucumber-Behave",
           "icon": "media/behave-activity.svg"
         }
       ]
     },
     "views": {
-      "smartBehaveExecutionPanel": [
+      "cucumberBehaveViewContainer": [
         {
           "type": "webview",
           "id": "smartBehave.liveRun",
-          "name": "Live Run",
+          "name": "Cucumber-Behave",
           "icon": "media/behave-activity.svg",
           "visibility": "visible"
         }
@@ -391,7 +391,27 @@
       },
       {
         "command": "smartBehave.showLiveRun",
-        "title": "Smart Behave: Show Live Run Panel"
+        "title": "Smart Behave: Show Cucumber-Behave Panel"
+      },
+      {
+        "command": "smartBehave.generateAllureReport",
+        "title": "Cucumber-Behave: Generate Allure Report",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "smartBehave.viewAllureReport",
+        "title": "Cucumber-Behave: View Allure Report",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "smartBehave.clearResults",
+        "title": "Cucumber-Behave: Clear Test Results History",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "smartBehave.refreshDiscovery",
+        "title": "Cucumber-Behave: Refresh Feature Discovery",
+        "icon": "$(refresh)"
       },
       {
         "command": "behave.run",

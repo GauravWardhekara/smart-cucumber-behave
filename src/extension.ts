@@ -31,6 +31,7 @@ import {
 import { registerBehaveOutputChannel } from "./run/behaveRunOutput";
 import { registerBehaveRunWorkspacePersistence } from "./run/behaveRunLastRun";
 import { registerLiveRunWebview } from "./ui/liveRunWebview";
+import { behaveResultsManager } from "./run/behaveResultsManager";
 import { getExtension } from "./utils/python";
 import { ensureLaunchJsonWithSmartBehaveArgs } from "./run/behaveLaunchConfig";
 import {
@@ -67,6 +68,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     registerBehaveRunWorkspacePersistence(context);
     registerBehaveOutputChannel(context);
+    behaveResultsManager.initialize(context);
     registerLiveRunWebview(context);
 
     // 2. Register Test Controller

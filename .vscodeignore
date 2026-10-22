@@ -9,6 +9,7 @@ test/**
 scripts/**
 example/**
 node_modules/**
+reports/**
 
 **/*.map
 **/dprint*

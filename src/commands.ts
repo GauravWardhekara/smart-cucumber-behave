@@ -30,6 +30,7 @@ import { stepDefinitionIndex } from "./language/stepIndex";
 import { featureStepIndex } from "./language/featureStepIndex";
 import { revealLiveRunPanel } from "./ui/liveRunWebview";
 import { executeGenerateStepDefinition, GeneratedStepSnippet } from "./language/stepCodeActionProvider";
+import { behaveResultsManager } from "./run/behaveResultsManager";
 
 type RunScenarioArgs = {
   filePath: string;
@@ -357,6 +358,40 @@ export function registerCommands(context: vscode.ExtensionContext): void {
       { name: "behave.runWip", fn: runWip },
       { name: "smartBehave.openEnvironmentFile", fn: openEnvironmentFile },
       { name: "behave.openEnvironmentFile", fn: openEnvironmentFile },
+      {
+        name: "smartBehave.generateAllureReport",
+        fn: async () => {
+          const res = await behaveResultsManager.generateAllureReport();
+          if (res.success) {
+            const ans = await vscode.window.showInformationMessage(res.message, "View Report");
+            if (ans === "View Report") {
+              await behaveResultsManager.viewAllureReport();
+            }
+          } else {
+            void vscode.window.showErrorMessage(res.message);
+          }
+        }
+      },
+      {
+        name: "smartBehave.viewAllureReport",
+        fn: async () => {
+          await behaveResultsManager.viewAllureReport();
+        }
+      },
+      {
+        name: "smartBehave.clearResults",
+        fn: () => {
+          behaveResultsManager.clearRecords();
+          void vscode.window.showInformationMessage("Cucumber-Behave: Test results history cleared.");
+        }
+      },
+      {
+        name: "smartBehave.refreshDiscovery",
+        fn: async () => {
+          await behaveTestController.discoverAll();
+          void vscode.window.showInformationMessage("Cucumber-Behave: Feature discovery refreshed.");
+        }
+      },
       {
         name: "smartBehave.formatCustomGherkin",
         fn: async () => {

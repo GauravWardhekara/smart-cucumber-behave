@@ -220,7 +220,8 @@ async function runBehaveJob(
         plainBytesSentToPanelForStep = pendingPlainStdout.length;
       },
       hookFlushState,
-      testRunReporter: reporter
+      testRunReporter: reporter,
+      capsFile: liveOpts?.capsFile
     };
 
     const proc = spawnBehave(runJob, workspaceRoot, interpreter.path, {
