@@ -107,28 +107,54 @@ export function detectConfigFiles(
     }
   }
 
-  // 2. If no files detected yet, check common directory names
-  if (detected.size === 0) {
-    const candidateDirs = ["configs", "config", "caps", "capabilities"];
-    for (const candidate of candidateDirs) {
-      const candPath = path.resolve(workspaceRoot, candidate);
-      if (fs.existsSync(candPath)) {
-        const files = scanDirectoryForConfigFiles(candPath, workspaceRoot);
-        for (const f of files) {
-          detected.add(f);
-        }
+  // 2. Also check common directory names (configs, config, caps, capabilities)
+  const candidateDirs = ["configs", "config", "caps", "capabilities"];
+  for (const candidate of candidateDirs) {
+    const candPath = path.resolve(workspaceRoot, candidate);
+    if (fs.existsSync(candPath)) {
+      const files = scanDirectoryForConfigFiles(candPath, workspaceRoot);
+      for (const f of files) {
+        detected.add(f);
       }
     }
   }
 
-  // 3. Also check workspace root for caps/config files
-  if (detected.size === 0) {
-    const rootFiles = scanDirectoryForConfigFiles(workspaceRoot, workspaceRoot, 0, 0);
-    for (const f of rootFiles) {
-      const lower = f.toLowerCase();
-      if (lower.includes("caps") || lower.includes("config") || lower.includes("endpoint")) {
-        detected.add(f);
+  // 3. Scan one level deep for common project subfolders (e.g. example/configs, test/config, tests/configs)
+  try {
+    const rootEntries = fs.readdirSync(workspaceRoot, { withFileTypes: true });
+    for (const ent of rootEntries) {
+      if (ent.isDirectory() && !ent.name.startsWith(".") && ent.name !== "node_modules" && ent.name !== "out" && ent.name !== "dist") {
+        for (const candidate of candidateDirs) {
+          const subCandPath = path.join(workspaceRoot, ent.name, candidate);
+          if (fs.existsSync(subCandPath)) {
+            const files = scanDirectoryForConfigFiles(subCandPath, workspaceRoot);
+            for (const f of files) {
+              detected.add(f);
+            }
+          }
+        }
       }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 4. Also check workspace root for caps/config files
+  const rootFiles = scanDirectoryForConfigFiles(workspaceRoot, workspaceRoot, 0, 0);
+  for (const f of rootFiles) {
+    const lower = f.toLowerCase();
+    if (lower.includes("caps") || lower.includes("config") || lower.includes("endpoint")) {
+      if (
+        lower === "package.json" ||
+        lower === "package-lock.json" ||
+        lower === "tsconfig.json" ||
+        lower === "language-configuration.json" ||
+        lower === "dprint.json" ||
+        lower === "eslint.config.mjs"
+      ) {
+        continue;
+      }
+      detected.add(f);
     }
   }
 

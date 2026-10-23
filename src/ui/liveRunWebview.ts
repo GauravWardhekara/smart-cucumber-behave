@@ -39,6 +39,7 @@ const MAX_CAPTURE_JSON_BYTES = 750_000;
 let workspaceStateForLivePanel: vscode.Memento | undefined;
 let livePanelCapture: unknown[] = [];
 let activeWebviewView: vscode.WebviewView | undefined;
+let extensionContextForLivePanel: vscode.ExtensionContext | undefined;
 
 export interface DiscoveredStep {
   keyword: string;
@@ -183,10 +184,16 @@ function createLivePanelGateway(
     post(message: LivePanelToWebviewMessage): void {
       livePanelCapture.push(cloneForCapture(message));
       postToWebview(message);
+      if (CucumberBehaveMainScreenPanel.currentPanel) {
+        void CucumberBehaveMainScreenPanel.currentPanel.panel.webview.postMessage(message);
+      }
     },
     clear(): void {
       livePanelCapture = [{ type: "clear" }];
       postToWebview({ type: "clear" });
+      if (CucumberBehaveMainScreenPanel.currentPanel) {
+        void CucumberBehaveMainScreenPanel.currentPanel.panel.webview.postMessage({ type: "clear" });
+      }
     },
     persistCapture(): void {
       persistLivePanelCaptureNowImpl();
@@ -205,13 +212,49 @@ export async function collectDiscoveryData(): Promise<DiscoveryPayload> {
 
   for (const folder of wsFolders) {
     const root = folder.uri.fsPath;
-    const detected = detectConfigFiles(root);
+    const configDirSetting = settings.configDirectory(folder.uri)?.trim() || "configs";
+    const detected = detectConfigFiles(root, configDirSetting);
     for (const c of detected) {
       capsFilesSet.add(c);
     }
     const def = settings.defaultConfigFile(folder.uri)?.trim();
     if (def) {
       defaultConfig = def;
+    }
+
+    // Also scan for config/caps files across workspace using findFiles
+    try {
+      const candidateGlobs = [
+        `**/${configDirSetting}/**/*.{json,properties,yaml,yml,conf,ini,toml,env,cfg}`,
+        "**/{configs,config,caps,capabilities}/**/*.{json,properties,yaml,yml,conf,ini,toml,env,cfg}",
+        "**/*caps*.json",
+        "**/*config*.json"
+      ];
+      for (const glob of candidateGlobs) {
+        const found = await vscode.workspace.findFiles(
+          new vscode.RelativePattern(folder, glob),
+          "**/{node_modules,.git,__pycache__,out,dist,build}/**"
+        );
+        for (const uri of found) {
+          const base = path.basename(uri.fsPath).toLowerCase();
+          if (
+            base === "package.json" ||
+            base === "package-lock.json" ||
+            base === "tsconfig.json" ||
+            base === "language-configuration.json" ||
+            base === "dprint.json" ||
+            base === "eslint.config.mjs" ||
+            base === "launch.json" ||
+            base === "settings.json"
+          ) {
+            continue;
+          }
+          const rel = path.relative(root, uri.fsPath).replace(/\\/g, "/");
+          capsFilesSet.add(rel);
+        }
+      }
+    } catch (e) {
+      LOG.warn("Error finding candidate config files:", e);
     }
 
     try {
@@ -288,6 +331,7 @@ function postResultsDataToWebview(webview: vscode.Webview): void {
 }
 
 export function registerLiveRunWebview(context: vscode.ExtensionContext): void {
+  extensionContextForLivePanel = context;
   workspaceStateForLivePanel = context.workspaceState;
   const provider = new LiveRunWebviewProvider(context.extensionUri);
 
@@ -307,6 +351,9 @@ export function registerLiveRunWebview(context: vscode.ExtensionContext): void {
       if (activeWebviewView) {
         postResultsDataToWebview(activeWebviewView.webview);
       }
+      if (CucumberBehaveMainScreenPanel.currentPanel) {
+        postResultsDataToWebview(CucumberBehaveMainScreenPanel.currentPanel.panel.webview);
+      }
     })
   );
 
@@ -316,12 +363,15 @@ export function registerLiveRunWebview(context: vscode.ExtensionContext): void {
     watcher,
     watcher.onDidCreate(() => {
       if (activeWebviewView) void postDiscoveryDataToWebview(activeWebviewView.webview);
+      if (CucumberBehaveMainScreenPanel.currentPanel) void postDiscoveryDataToWebview(CucumberBehaveMainScreenPanel.currentPanel.panel.webview);
     }),
     watcher.onDidChange(() => {
       if (activeWebviewView) void postDiscoveryDataToWebview(activeWebviewView.webview);
+      if (CucumberBehaveMainScreenPanel.currentPanel) void postDiscoveryDataToWebview(CucumberBehaveMainScreenPanel.currentPanel.panel.webview);
     }),
     watcher.onDidDelete(() => {
       if (activeWebviewView) void postDiscoveryDataToWebview(activeWebviewView.webview);
+      if (CucumberBehaveMainScreenPanel.currentPanel) void postDiscoveryDataToWebview(CucumberBehaveMainScreenPanel.currentPanel.panel.webview);
     })
   );
 }
@@ -337,19 +387,13 @@ function loadLiveRunHtml(extensionUri: vscode.Uri): string {
 
 function buildLiveRunPanelHtml(
   webview: vscode.Webview,
-  extensionUri: vscode.Uri
+  extensionUri: vscode.Uri,
+  mode: "sidebar" | "mainscreen" = "sidebar"
 ): string {
   let html = loadLiveRunHtml(extensionUri);
   const codiconCss = webview.asWebviewUri(
     vscode.Uri.joinPath(extensionUri, "media", "codicons", "codicon.css")
   );
-  const bundledJs = vscode.Uri.joinPath(
-    extensionUri,
-    "media",
-    "liveRunPanel.bundle.js"
-  );
-  const useBundle = fs.existsSync(bundledJs.fsPath);
-  const scriptSrc = useBundle ? webview.asWebviewUri(bundledJs).toString() : "";
   const csp = [
     "default-src 'none'",
     `style-src ${webview.cspSource} 'unsafe-inline'`,
@@ -362,13 +406,181 @@ function buildLiveRunPanelHtml(
     "BEHAVE_RUN_CODICON_LINK_PLACEHOLDER",
     `<link rel="stylesheet" href="${codiconCss}" />`
   );
-  html = html.replace(
-    "BEHAVE_RUN_SCRIPT_PLACEHOLDER",
-    useBundle
-      ? `<script src="${scriptSrc}"></script>`
-      : ""
-  );
+  html = html.replace("BEHAVE_RUN_SCRIPT_PLACEHOLDER", "");
+  html = html.replace('data-mode="sidebar"', `data-mode="${mode}"`);
+  html = html.replace('class="view-root"', `class="view-root mode-${mode}"`);
   return html;
+}
+
+export class CucumberBehaveMainScreenPanel {
+  public static currentPanel: CucumberBehaveMainScreenPanel | undefined;
+  public readonly panel: vscode.WebviewPanel;
+  private disposables: vscode.Disposable[] = [];
+
+  public static createOrShow(extensionUri: vscode.Uri): CucumberBehaveMainScreenPanel {
+    const column = vscode.window.activeTextEditor
+      ? vscode.window.activeTextEditor.viewColumn
+      : vscode.ViewColumn.One;
+
+    if (CucumberBehaveMainScreenPanel.currentPanel) {
+      CucumberBehaveMainScreenPanel.currentPanel.panel.reveal(column);
+      return CucumberBehaveMainScreenPanel.currentPanel;
+    }
+
+    const panel = vscode.window.createWebviewPanel(
+      "cucumberBehaveMainScreen",
+      "Cucumber-Behave: Execution & Results",
+      column || vscode.ViewColumn.One,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [extensionUri]
+      }
+    );
+
+    const logoPngPath = path.join(extensionUri.fsPath, "data", "logo.png");
+    panel.iconPath = fs.existsSync(logoPngPath)
+      ? vscode.Uri.joinPath(extensionUri, "data", "logo.png")
+      : vscode.Uri.joinPath(extensionUri, "media", "gherkin.svg");
+
+    CucumberBehaveMainScreenPanel.currentPanel = new CucumberBehaveMainScreenPanel(panel, extensionUri);
+    return CucumberBehaveMainScreenPanel.currentPanel;
+  }
+
+  private constructor(panel: vscode.WebviewPanel, private readonly extensionUri: vscode.Uri) {
+    this.panel = panel;
+    const logoPngPath = path.join(this.extensionUri.fsPath, "data", "logo.png");
+    this.panel.iconPath = fs.existsSync(logoPngPath)
+      ? vscode.Uri.joinPath(this.extensionUri, "data", "logo.png")
+      : vscode.Uri.joinPath(this.extensionUri, "media", "gherkin.svg");
+    this.panel.webview.html = buildLiveRunPanelHtml(this.panel.webview, this.extensionUri, "mainscreen");
+
+    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+
+    this.panel.webview.onDidReceiveMessage(
+      (msg: unknown) => {
+        void handleLiveRunWebviewMessage(this.panel.webview, msg);
+      },
+      null,
+      this.disposables
+    );
+
+    postResultsDataToWebview(this.panel.webview);
+    postStoredLivePanelReplay(this.panel.webview);
+    void this.panel.webview.postMessage({
+      type: "switchToTab",
+      tab: "execution"
+    });
+  }
+
+  public dispose(): void {
+    CucumberBehaveMainScreenPanel.currentPanel = undefined;
+    this.panel.dispose();
+    while (this.disposables.length) {
+      const x = this.disposables.pop();
+      if (x) {
+        x.dispose();
+      }
+    }
+  }
+}
+
+export class AllureReportPanel {
+  public static currentPanel: AllureReportPanel | undefined;
+  public readonly panel: vscode.WebviewPanel;
+  private disposables: vscode.Disposable[] = [];
+
+  public static createOrShow(extensionUri: vscode.Uri, reportPath: string): AllureReportPanel {
+    const column = vscode.ViewColumn.One;
+
+    if (AllureReportPanel.currentPanel) {
+      AllureReportPanel.currentPanel.panel.reveal(column);
+      AllureReportPanel.currentPanel.loadReport(reportPath);
+      return AllureReportPanel.currentPanel;
+    }
+
+    const reportsDir = path.dirname(reportPath);
+    const panel = vscode.window.createWebviewPanel(
+      "allureReportView",
+      "Allure Test Report",
+      column,
+      {
+        enableScripts: true,
+        retainContextWhenHidden: true,
+        localResourceRoots: [
+          vscode.Uri.file(reportsDir),
+          vscode.Uri.file(path.dirname(reportsDir)),
+          extensionUri
+        ]
+      }
+    );
+
+    const logoPngPath = path.join(extensionUri.fsPath, "data", "logo.png");
+    panel.iconPath = fs.existsSync(logoPngPath)
+      ? vscode.Uri.joinPath(extensionUri, "data", "logo.png")
+      : vscode.Uri.joinPath(extensionUri, "media", "gherkin.svg");
+
+    AllureReportPanel.currentPanel = new AllureReportPanel(panel, extensionUri, reportPath);
+    return AllureReportPanel.currentPanel;
+  }
+
+  private constructor(
+    panel: vscode.WebviewPanel,
+    private readonly extensionUri: vscode.Uri,
+    reportPath: string
+  ) {
+    this.panel = panel;
+    const logoPngPath = path.join(this.extensionUri.fsPath, "data", "logo.png");
+    this.panel.iconPath = fs.existsSync(logoPngPath)
+      ? vscode.Uri.joinPath(this.extensionUri, "data", "logo.png")
+      : vscode.Uri.joinPath(this.extensionUri, "media", "gherkin.svg");
+    this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
+    this.loadReport(reportPath);
+  }
+
+  public loadReport(reportPath: string): void {
+    if (!fs.existsSync(reportPath)) {
+      this.panel.webview.html = `<!DOCTYPE html><html><body style="font-family:sans-serif;padding:24px;color:var(--vscode-editor-foreground);background:var(--vscode-editor-background);"><h3>Allure report not found at <code>${reportPath}</code></h3><p>Please click 'Generate Allure Report' first.</p></body></html>`;
+      return;
+    }
+
+    const reportsDir = path.dirname(reportPath);
+    const baseUri = this.panel.webview.asWebviewUri(vscode.Uri.file(reportsDir));
+
+    let html = fs.readFileSync(reportPath, "utf-8");
+
+    // Inject <base href="..."> so relative scripts/styles load properly in webview
+    const baseTag = `<base href="${baseUri.toString()}/">`;
+    if (html.includes("<head>")) {
+      html = html.replace("<head>", `<head>\n  ${baseTag}`);
+    } else {
+      html = `${baseTag}\n${html}`;
+    }
+
+    this.panel.webview.html = html;
+  }
+
+  public dispose(): void {
+    AllureReportPanel.currentPanel = undefined;
+    this.panel.dispose();
+    while (this.disposables.length) {
+      const d = this.disposables.pop();
+      if (d) d.dispose();
+    }
+  }
+}
+
+export function openMainScreenPanel(): CucumberBehaveMainScreenPanel | undefined {
+  if (extensionContextForLivePanel) {
+    const mainPanel = CucumberBehaveMainScreenPanel.createOrShow(extensionContextForLivePanel.extensionUri);
+    mainPanel.panel.reveal(vscode.ViewColumn.One);
+    void mainPanel.panel.webview.postMessage({
+      type: "switchToTab",
+      tab: "execution"
+    });
+    return mainPanel;
+  }
+  return undefined;
 }
 
 class LiveRunWebviewProvider implements vscode.WebviewViewProvider {
@@ -485,11 +697,20 @@ async function handleRunTestFromWebview(
     }
   }
 
-  // Switch webview to Execution tab
+  // Switch sidebar webview to Execution tab so live steps are displayed in sidebar
   void webview.postMessage({
     type: "switchToTab",
     tab: "execution"
   });
+
+  // Also open/reveal Main Screen panel in the editor area and focus Execution tab
+  const mainPanel = openMainScreenPanel();
+  if (mainPanel) {
+    void mainPanel.panel.webview.postMessage({
+      type: "switchToTab",
+      tab: "execution"
+    });
+  }
 
   const cts = new vscode.CancellationTokenSource();
   try {
@@ -553,6 +774,11 @@ async function handleLiveRunWebviewMessage(
     return;
   }
 
+  if (msg.type === "openMainScreen") {
+    openMainScreenPanel();
+    return;
+  }
+
   if (msg.type === "stopRun" || msg.type === "stopTest") {
     logBehaveRunCancel(
       "Cucumber-Behave Stop requested from webview"
@@ -598,10 +824,14 @@ async function handleLiveRunWebviewMessage(
       usedCli: res.usedCli
     });
     postResultsDataToWebview(webview);
-    if (res.success) {
+    if (res.success || (res.reportPath && fs.existsSync(res.reportPath))) {
       void vscode.window.showInformationMessage(res.message, "View Allure Report").then((ans) => {
         if (ans === "View Allure Report") {
-          void behaveResultsManager.viewAllureReport();
+          if (extensionContextForLivePanel) {
+            AllureReportPanel.createOrShow(extensionContextForLivePanel.extensionUri, res.reportPath);
+          } else {
+            void behaveResultsManager.viewAllureReport();
+          }
         }
       });
     } else {
@@ -611,7 +841,24 @@ async function handleLiveRunWebviewMessage(
   }
 
   if (msg.type === "viewAllure") {
-    await behaveResultsManager.viewAllureReport();
+    const wsFolders = vscode.workspace.workspaceFolders;
+    const root = wsFolders?.[0]?.uri.fsPath || process.cwd();
+    const reportsDir = path.join(root, "reports", "allure-report");
+    const reportIndexPath = path.join(reportsDir, "index.html");
+
+    if (!fs.existsSync(reportIndexPath)) {
+      const genResult = await behaveResultsManager.generateAllureReport(root);
+      if (!genResult.success && !fs.existsSync(reportIndexPath)) {
+        void vscode.window.showErrorMessage("Failed to generate Allure Report.");
+        return;
+      }
+    }
+
+    if (extensionContextForLivePanel) {
+      AllureReportPanel.createOrShow(extensionContextForLivePanel.extensionUri, reportIndexPath);
+    } else {
+      await behaveResultsManager.viewAllureReport();
+    }
     return;
   }
 

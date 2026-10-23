@@ -11,6 +11,7 @@ import {
 } from "../utils/languageRuntimes";
 import { detectBehaveProjectConfig } from "../run/behaveConfigFile";
 import * as path from "path";
+import * as fs from "fs";
 
 export class SmartBehaveConfigPanel {
   public static currentPanel: SmartBehaveConfigPanel | undefined;
@@ -38,12 +39,21 @@ export class SmartBehaveConfigPanel {
       }
     );
 
+    const logoPngPath = path.join(extensionUri.fsPath, "data", "logo.png");
+    panel.iconPath = fs.existsSync(logoPngPath)
+      ? vscode.Uri.joinPath(extensionUri, "data", "logo.png")
+      : vscode.Uri.joinPath(extensionUri, "media", "gherkin.svg");
+
     SmartBehaveConfigPanel.currentPanel = new SmartBehaveConfigPanel(panel, extensionUri);
     return SmartBehaveConfigPanel.currentPanel;
   }
 
   private constructor(panel: vscode.WebviewPanel, private readonly extensionUri: vscode.Uri) {
     this.panel = panel;
+    const logoPngPath = path.join(this.extensionUri.fsPath, "data", "logo.png");
+    this.panel.iconPath = fs.existsSync(logoPngPath)
+      ? vscode.Uri.joinPath(this.extensionUri, "data", "logo.png")
+      : vscode.Uri.joinPath(this.extensionUri, "media", "gherkin.svg");
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.html = this.getHtml();
 

@@ -230,10 +230,66 @@
       border: 1px solid var(--vscode-dropdown-border, rgba(128, 128, 128, 0.3));
       border-radius: 2px;
       outline: none;
-      max-width: 160px;
+      max-width: 220px;
+      text-overflow: ellipsis;
     }
     .select-dropdown:focus {
       border-color: var(--vscode-focusBorder, #007acc);
+    }
+
+    /* === MAIN SCREEN LOGS & RESULTS SECTION === */
+    .mainscreen-section {
+      display: none !important;
+    }
+    .mainscreen-header {
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      background: var(--vscode-sideBar-background);
+      border-bottom: 1px solid var(--vscode-widget-border);
+      flex-shrink: 0;
+    }
+    .mainscreen-metrics {
+      display: flex;
+      gap: 6px;
+      padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.15);
+      border-bottom: 1px solid var(--vscode-widget-border);
+      flex-shrink: 0;
+    }
+    .metric-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--vscode-badge-background, rgba(255, 255, 255, 0.1));
+      color: var(--vscode-badge-foreground, #fff);
+    }
+    .metric-badge.pass {
+      background: rgba(115, 201, 145, 0.2);
+      color: var(--pass-color, #73c991);
+      border: 1px solid rgba(115, 201, 145, 0.4);
+    }
+    .metric-badge.fail {
+      background: rgba(241, 76, 76, 0.2);
+      color: var(--fail-color, #f14c4c);
+      border: 1px solid rgba(241, 76, 76, 0.4);
+    }
+    .mainscreen-console-box {
+      flex: 1 1 auto;
+      min-height: 75px;
+      max-height: 160px;
+      overflow: auto;
+      background: var(--vscode-terminal-background, #181818);
+    }
+    .mainscreen-results-list {
+      flex: 0 0 auto;
+      max-height: 110px;
+      overflow-y: auto;
+      padding: 4px 6px;
     }
 
     /* === DISCOVERY TREE VIEW === */
@@ -415,13 +471,14 @@
       display: flex;
       flex-direction: column;
       position: relative;
+      background: var(--vscode-editor-background);
     }
     .live-progress-list {
-      max-height: 180px;
+      max-height: 220px;
       min-height: 60px;
       overflow-y: auto;
       border-bottom: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.2));
-      background: rgba(0, 0, 0, 0.08);
+      background: var(--vscode-editor-background) !important;
       padding: 4px 0;
       flex-shrink: 0;
     }
@@ -429,9 +486,10 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 3px 10px;
+      padding: 4px 10px;
       font-size: 11px;
       cursor: pointer;
+      color: var(--vscode-editor-foreground);
     }
     .live-step-item:hover {
       background: var(--vscode-list-hoverBackground);
@@ -449,21 +507,80 @@
       min-height: 0;
       display: flex;
       flex-direction: column;
-      background: var(--vscode-terminal-background, #1e1e1e);
+      background: var(--vscode-editor-background) !important;
       position: relative;
     }
     .console-out {
       flex: 1 1 auto;
       min-height: 0;
       margin: 0;
-      padding: 8px 10px;
+      padding: 10px 12px;
       overflow: auto;
       font-family: var(--vscode-editor-font-family, Consolas, "Courier New", monospace);
       font-size: var(--vscode-editor-font-size, 11px);
       line-height: 1.45;
       white-space: pre-wrap;
       word-break: break-all;
-      color: var(--vscode-terminal-foreground, #cccccc);
+      background: var(--vscode-editor-background) !important;
+      color: var(--vscode-editor-foreground) !important;
+      border-top: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.2)));
+    }
+    .sidebar-console-footer {
+      display: none;
+      flex-shrink: 0;
+      padding: 8px 10px;
+      background: var(--vscode-editor-background);
+      border-top: 1px solid var(--vscode-widget-border, rgba(128, 128, 128, 0.2));
+    }
+
+    /* === MODE-SPECIFIC STYLES === */
+    /* Sidebar Mode: Live Steps checklist takes full height of Execution tab; console is in main editor */
+    .view-root.mode-sidebar .live-progress-list {
+      flex: 1 1 auto !important;
+      max-height: none !important;
+      height: 100% !important;
+      border-bottom: none !important;
+      background: var(--vscode-editor-background) !important;
+    }
+    .view-root.mode-sidebar .console-pane {
+      display: none !important;
+    }
+    .view-root.mode-sidebar .sidebar-console-footer {
+      display: flex !important;
+    }
+    .view-root.mode-sidebar .tree-scroll-area {
+      flex: 1 1 auto !important;
+      height: 100% !important;
+      max-height: 100% !important;
+    }
+
+    /* Main Screen Mode: Dedicated full-screen Execution Output Console & Results; hide Discovery tab */
+    .view-root.mode-mainscreen .tab-btn[data-tab="discovery"] {
+      display: none !important;
+    }
+    .view-root.mode-mainscreen #paneDiscovery {
+      display: none !important;
+    }
+    .view-root.mode-mainscreen .live-progress-list {
+      display: none !important;
+    }
+    .view-root.mode-mainscreen .sidebar-console-footer {
+      display: none !important;
+    }
+    .view-root.mode-mainscreen .console-pane {
+      display: flex !important;
+      flex: 1 1 auto !important;
+      height: 100% !important;
+      background: var(--vscode-editor-background) !important;
+    }
+    .view-root.mode-mainscreen .console-out {
+      display: block !important;
+      flex: 1 1 auto !important;
+      height: 100% !important;
+      background: var(--vscode-editor-background) !important;
+      color: var(--vscode-editor-foreground) !important;
+      border: 1px solid var(--vscode-widget-border, var(--vscode-panel-border, rgba(128, 128, 128, 0.2))) !important;
+      border-radius: 4px;
     }
     .console-find-bar {
       display: none;
@@ -671,6 +788,11 @@
           </button>
         </div>
 
+        <!-- Feature Scan Status Badge -->
+        <div id="discoveryScanStatus" style="font-size:11px; padding:4px 8px; color:var(--vscode-descriptionForeground); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--vscode-widget-border, rgba(128,128,128,0.2)); background:rgba(0,0,0,0.05);">
+          <span>Scanning features…</span>
+        </div>
+
         <!-- Tree View Container -->
         <div class="tree-scroll-area" id="discoveryTreeContainer">
           <div class="empty-state" id="discoveryLoadingState">
@@ -684,6 +806,48 @@
             <span class="empty-state-desc">Add .feature files into features/ directory to start BDD testing.</span>
           </div>
           <div id="discoveryTreeRoot"></div>
+        </div>
+
+        <!-- Main Screen: Execution Logs & Test Results Section -->
+        <div class="mainscreen-section" id="mainScreenLogsSection">
+          <div class="mainscreen-header">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <i class="codicon codicon-output" style="color:var(--vscode-textLink-foreground);"></i>
+              <strong style="font-size:12px;">Execution Logs & Test Results</strong>
+            </div>
+            <div style="display:flex; gap:4px; align-items:center; margin-left:auto;">
+              <button class="btn btn-primary" id="openMainScreenBtn" title="Open full execution logs and test results on the main screen editor area">
+                <i class="codicon codicon-screen-full"></i> Main Screen
+              </button>
+              <button class="icon-btn" id="mainClearLogsBtn" title="Clear logs">
+                <i class="codicon codicon-clear-all"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Results Summary Badges on Main Screen -->
+          <div class="mainscreen-metrics">
+            <div class="metric-badge">
+              <span class="num" id="mainTotalCount">0</span>
+              <span class="lbl">Total</span>
+            </div>
+            <div class="metric-badge pass">
+              <span class="num" id="mainPassedCount">0</span>
+              <span class="lbl">Passed</span>
+            </div>
+            <div class="metric-badge fail">
+              <span class="num" id="mainFailedCount">0</span>
+              <span class="lbl">Failed</span>
+            </div>
+          </div>
+
+          <!-- Execution Logs Terminal on Main Screen -->
+          <div class="mainscreen-console-box">
+            <pre class="console-out" id="mainConsoleOut" placeholder="Execution logs will appear here during and after test runs…"></pre>
+          </div>
+
+          <!-- Recent Test Results on Main Screen -->
+          <div class="mainscreen-results-list" id="mainResultsListRoot"></div>
         </div>
       </section>
 
@@ -731,6 +895,13 @@
             <div class="empty-state" style="padding:15px;">
               <span class="empty-state-desc">Live test progression and steps will appear here as tests execute.</span>
             </div>
+          </div>
+
+          <!-- Footer for Sidebar Mode to quickly open full execution logs in main screen -->
+          <div class="sidebar-console-footer" id="sidebarConsoleFooter">
+            <button class="btn btn-secondary" id="openMainLogsBtn" style="width:100%; justify-content:center;">
+              <i class="codicon codicon-screen-full"></i> View Execution Console on Main Screen
+            </button>
           </div>
 
           <!-- Real-Time Log Viewer -->
@@ -813,8 +984,6 @@
     </main>
   </div>
 
-  BEHAVE_RUN_SCRIPT_PLACEHOLDER
-
   <script>
     // Unified Cucumber-Behave Webview Controller
     (function () {
@@ -823,13 +992,16 @@
         if (typeof acquireVsCodeApi === "function") {
           vscode = acquireVsCodeApi();
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("VS Code API acquisition:", e);
+      }
 
       // State
       let activeTab = "discovery";
       let discoveryData = { features: [], capsFiles: [], defaultConfig: "", isRunning: false };
       let resultsRecords = [];
       let isExecuting = false;
+      let isElectedExecuting = false;
       let executionStartTime = null;
       let executionTimerInterval = null;
 
@@ -851,8 +1023,18 @@
       const execRunningDot = document.getElementById("execRunningDot");
       const resultsCountBadge = document.getElementById("resultsCountBadge");
 
+      const isSidebar = document.querySelector(".view-root.mode-sidebar") !== null ||
+                        document.body.getAttribute("data-mode") === "sidebar" ||
+                        document.querySelector(".view-root")?.getAttribute("data-mode") === "sidebar";
+      const isMainScreen = document.querySelector(".view-root.mode-mainscreen") !== null ||
+                           document.body.getAttribute("data-mode") === "mainscreen" ||
+                           document.querySelector(".view-root")?.getAttribute("data-mode") === "mainscreen";
+
       // Tab Switching
       function switchTab(targetTab) {
+        if (isMainScreen && targetTab === "discovery") {
+          targetTab = "execution";
+        }
         activeTab = targetTab;
         for (const [key, btn] of Object.entries(tabBtns)) {
           if (key === targetTab) btn.classList.add("active");
@@ -862,6 +1044,12 @@
           if (key === targetTab) pane.classList.add("active");
           else pane.classList.remove("active");
         }
+      }
+
+      if (isMainScreen) {
+        switchTab("execution");
+      } else {
+        switchTab("discovery");
       }
 
       tabBtns.discovery.addEventListener("click", () => switchTab("discovery"));
@@ -880,6 +1068,36 @@
       const discoveryTreeRoot = document.getElementById("discoveryTreeRoot");
       const discoveryLoadingState = document.getElementById("discoveryLoadingState");
       const discoveryEmptyState = document.getElementById("discoveryEmptyState");
+      const discoveryScanStatus = document.getElementById("discoveryScanStatus");
+
+      // Main Screen Elements
+      const openMainScreenBtn = document.getElementById("openMainScreenBtn");
+      const openMainLogsBtn = document.getElementById("openMainLogsBtn");
+      const mainClearLogsBtn = document.getElementById("mainClearLogsBtn");
+      const mainTotalCount = document.getElementById("mainTotalCount");
+      const mainPassedCount = document.getElementById("mainPassedCount");
+      const mainFailedCount = document.getElementById("mainFailedCount");
+      const mainConsoleOut = document.getElementById("mainConsoleOut");
+      const mainResultsListRoot = document.getElementById("mainResultsListRoot");
+
+      if (openMainScreenBtn) {
+        openMainScreenBtn.addEventListener("click", () => {
+          if (vscode) vscode.postMessage({ type: "openMainScreen" });
+        });
+      }
+
+      if (openMainLogsBtn) {
+        openMainLogsBtn.addEventListener("click", () => {
+          if (vscode) vscode.postMessage({ type: "openMainScreen" });
+        });
+      }
+
+      if (mainClearLogsBtn) {
+        mainClearLogsBtn.addEventListener("click", () => {
+          if (mainConsoleOut) mainConsoleOut.textContent = "";
+          consoleLogLines = [];
+        });
+      }
 
       discoverySearchInput.addEventListener("input", () => {
         discoveryClearBtn.style.display = discoverySearchInput.value ? "block" : "none";
@@ -892,6 +1110,9 @@
       });
 
       refreshDiscoveryBtn.addEventListener("click", () => {
+        if (discoveryScanStatus) {
+          discoveryScanStatus.innerHTML = `<span><i class="codicon codicon-loading codicon-modifier-spin"></i> Rescanning features directory…</span>`;
+        }
         if (vscode) vscode.postMessage({ type: "getDiscoveryData" });
       });
 
@@ -901,10 +1122,16 @@
         document.querySelectorAll(".node-arrow.expanded").forEach(a => a.classList.remove("expanded"));
       });
 
+      function startExecution(label) {
+        isElectedExecuting = true;
+        switchTab("execution");
+        startExecutionUi(label);
+      }
+
       runAllFeaturesBtn.addEventListener("click", () => {
         if (discoveryData.features.length === 0) return;
         const selectedCaps = discoveryCapsSelect.value;
-        // Run first feature which will trigger run for features
+        startExecution("Running all features…");
         if (vscode && discoveryData.features[0]) {
           vscode.postMessage({
             type: "runTest",
@@ -920,11 +1147,20 @@
 
       function renderCapsDropdown() {
         const currentVal = discoveryCapsSelect.value;
-        discoveryCapsSelect.innerHTML = '<option value="">Default Config</option>';
-        for (const file of discoveryData.capsFiles || []) {
+        discoveryCapsSelect.innerHTML = "";
+        
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "Default Config (Auto-detect)";
+        discoveryCapsSelect.appendChild(defaultOpt);
+
+        const files = discoveryData.capsFiles || [];
+        for (const file of files) {
           const opt = document.createElement("option");
           opt.value = file;
-          opt.textContent = file;
+          const fileName = file.split("/").pop();
+          opt.textContent = `${fileName} (${file})`;
+          opt.title = file;
           if (file === discoveryData.defaultConfig || file === currentVal) {
             opt.selected = true;
           }
@@ -989,6 +1225,7 @@
           runFeatBtn.innerHTML = '<i class="codicon codicon-play"></i>';
           runFeatBtn.addEventListener("click", (e) => {
             e.stopPropagation();
+            startExecution(`Running feature: ${feat.name}`);
             if (vscode) {
               vscode.postMessage({
                 type: "runTest",
@@ -1065,6 +1302,7 @@
             runScBtn.innerHTML = '<i class="codicon codicon-play"></i>';
             runScBtn.addEventListener("click", (e) => {
               e.stopPropagation();
+              startExecution(`Running scenario: ${sc.name}`);
               if (vscode) {
                 vscode.postMessage({
                   type: "runTest",
@@ -1209,8 +1447,14 @@
         // Strip ANSI colors or format basic ANSI
         const clean = text.replace(/\x1b\[[0-9;]*m/g, "");
         consoleLogLines.push(clean);
-        execConsoleOut.textContent += clean;
-        execConsoleOut.scrollTop = execConsoleOut.scrollHeight;
+        if (execConsoleOut) {
+          execConsoleOut.textContent += clean;
+          execConsoleOut.scrollTop = execConsoleOut.scrollHeight;
+        }
+        if (mainConsoleOut) {
+          mainConsoleOut.textContent += clean;
+          mainConsoleOut.scrollTop = mainConsoleOut.scrollHeight;
+        }
       }
 
       function addLiveStep(stepKey, keyword, text, status) {
@@ -1337,6 +1581,16 @@
               ${r.capsFile ? `<span style="font-family:monospace; background:rgba(255,255,255,0.06); padding:1px 4px; border-radius:2px;">${r.capsFile}</span>` : ''}
             </div>
             ${r.errorMessage ? `<div class="result-error-box">${r.errorMessage}</div>` : ''}
+            ${r.artifacts && r.artifacts.length ? `
+              <div class="result-artifacts-bar" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;">
+                ${r.artifacts.map(a => `
+                  <button class="btn btn-secondary" style="font-size:10px; padding:2px 8px; display:inline-flex; align-items:center; gap:4px;" onclick="event.stopPropagation(); if (vscode) vscode.postMessage({ type: 'openFile', filePath: '${a.filePath.replace(/\\/g, '\\\\')}' });" title="Open ${a.name}">
+                    <i class="codicon ${a.type === 'screenshot' ? 'codicon-device-camera' : 'codicon-file-code'}"></i>
+                    ${a.type === 'screenshot' ? 'Screenshot' : a.type === 'dom_dump' ? 'DOM Dump' : a.name}
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
           `;
 
           const rerunBtn = card.querySelector(".run-btn");
@@ -1364,6 +1618,42 @@
           });
 
           resultsListRoot.appendChild(card);
+        }
+
+        // Also update Main Screen results cards
+        if (mainResultsListRoot) {
+          mainResultsListRoot.innerHTML = "";
+          const recentList = (resultsRecords || []).slice(0, 5);
+          for (const r of recentList) {
+            const card = document.createElement("div");
+            card.className = "result-card";
+            card.style.marginBottom = "4px";
+            card.style.padding = "6px 8px";
+            const isPass = r.status === "passed";
+            const iconName = isPass ? "check" : r.status === "failed" ? "error" : "debug-stop";
+            const iconColor = isPass ? "var(--pass-color)" : r.status === "failed" ? "var(--fail-color)" : "var(--skip-color)";
+            card.innerHTML = `
+              <div class="result-header" style="margin-bottom:2px;">
+                <div class="result-title-group">
+                  <i class="codicon codicon-${iconName}" style="color:${iconColor}; font-size:13px; flex-shrink:0;"></i>
+                  <span class="result-scenario-name" style="font-size:11px;" title="${r.scenarioName}">${r.scenarioName}</span>
+                </div>
+                <span style="font-size:10px; opacity:0.8;">${(r.durationMs / 1000).toFixed(1)}s</span>
+              </div>
+              <div class="result-feature-name" style="font-size:10px; margin-bottom:2px;">${r.featureName}</div>
+              ${r.errorMessage ? `<div class="result-error-box" style="font-size:10px; padding:3px 6px;">${r.errorMessage}</div>` : ''}
+            `;
+            card.addEventListener("click", () => {
+              if (vscode) {
+                vscode.postMessage({
+                  type: "openFile",
+                  filePath: r.featureFilePath,
+                  line: r.scenarioLine
+                });
+              }
+            });
+            mainResultsListRoot.appendChild(card);
+          }
         }
       }
 
@@ -1398,6 +1688,9 @@
               resTotalCount.textContent = msg.summary.total || 0;
               resPassedCount.textContent = msg.summary.passed || 0;
               resFailedCount.textContent = msg.summary.failed || 0;
+              if (mainTotalCount) mainTotalCount.textContent = msg.summary.total || 0;
+              if (mainPassedCount) mainPassedCount.textContent = msg.summary.passed || 0;
+              if (mainFailedCount) mainFailedCount.textContent = msg.summary.failed || 0;
             }
             renderResultsList();
             break;
@@ -1461,6 +1754,9 @@
           case "runCancelled":
             appendConsole("\n[Execution Cancelled by User]\n");
             finishExecutionUi(false, "Run cancelled");
+            if (isElectedExecuting) {
+              isElectedExecuting = false;
+            }
             break;
 
           case "run_finished":
@@ -1468,12 +1764,16 @@
             const dur = msg.duration ? ` in ${(msg.duration).toFixed(1)}s` : "";
             appendConsole(`\n[Execution Finished] Exit code: ${msg.exitCode}${dur}\n`);
             finishExecutionUi(passed, passed ? `All tests passed${dur}` : `Tests finished with failures (code ${msg.exitCode})`);
+            if (isElectedExecuting) {
+              isElectedExecuting = false;
+            }
             break;
 
           case "clear":
             consoleLogLines = [];
             execConsoleOut.textContent = "";
             execProgressList.innerHTML = "";
+            if (mainConsoleOut) mainConsoleOut.textContent = "";
             break;
 
           case "replayCapture":

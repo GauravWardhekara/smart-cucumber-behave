@@ -92,6 +92,7 @@ export type LivePanelFromWebviewMessage =
   | { type: "clearResults" }
   | { type: "generateAllure" }
   | { type: "viewAllure" }
+  | { type: "openMainScreen" }
   | { type: "setDefaultCaps"; capsFile: string };
 
 export function isLivePanelFromWebviewMessage(

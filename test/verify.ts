@@ -688,11 +688,139 @@ Feature: Maximo REST API Verification
     process.env.PATH = origPath;
   }
 
+  // Verify Failure Screenshot & DOM Dump Capture and Linking in Allure Report
+  console.log("\n--- Verifying Allure Report Failure Artifacts (Screenshot & DOM Dump) ---");
+  const testScreenshotsDir = path.resolve(__dirname, "../reports/screenshots");
+  const testDomDumpsDir = path.resolve(__dirname, "../reports/dom_dumps");
+  fs.mkdirSync(testScreenshotsDir, { recursive: true });
+  fs.mkdirSync(testDomDumpsDir, { recursive: true });
+
+  const sampleShot = path.join(testScreenshotsDir, "Payment_card_fails_failure.png");
+  const sampleDom = path.join(testDomDumpsDir, "Payment_card_fails_dom.html");
+  fs.writeFileSync(sampleShot, "fake-png-content");
+  fs.writeFileSync(sampleDom, "<html><body><div id='popup'>Finding Pop Up</div></body></html>");
+
+  // Multi-scenario isolation check: record a second failed scenario
+  const secondShot = path.join(testScreenshotsDir, "User_login_fails_failure.png");
+  const secondDom = path.join(testDomDumpsDir, "User_login_fails_dom.html");
+  fs.writeFileSync(secondShot, "fake-user-login-shot");
+  fs.writeFileSync(secondDom, "<html><body><div id='login-error'>Invalid Credentials Error</div></body></html>");
+
+  behaveResultsManager.recordScenario({
+    featureName: "Authentication Feature",
+    featureFilePath: path.resolve(__dirname, "../example/features/login.feature"),
+    relativeFilePath: "features/login.feature",
+    scenarioName: "User login fails",
+    scenarioLine: 20,
+    status: "failed",
+    durationMs: 1200,
+    timestamp: Date.now(),
+    errorMessage: "Invalid credentials",
+    totalSteps: 2,
+    passedSteps: 1,
+    failedSteps: 1,
+    steps: [
+      { keyword: "Given", text: "user is on login page", status: "passed", durationMs: 500 },
+      { keyword: "When", text: "user enters invalid password", status: "failed", durationMs: 700, error: "Invalid credentials" }
+    ]
+  });
+
+  const allureArtifactResult = await behaveResultsManager.generateAllureReport(path.resolve(__dirname, ".."));
+  const artifactReportHtml = fs.readFileSync(allureArtifactResult.reportPath, "utf-8");
+  assert(artifactReportHtml.includes("attachment-screenshot"), "Allure report captures and links failure screenshot");
+  assert(artifactReportHtml.includes("Payment_card_fails_failure.png"), "Allure report displays screenshot filename");
+  assert(artifactReportHtml.includes("attachment-dom"), "Allure report captures and links failure DOM dump");
+  assert(artifactReportHtml.includes("Payment_card_fails_dom.html"), "Allure report displays DOM dump filename");
+  assert(artifactReportHtml.includes("Finding Pop Up"), "Allure report embeds complete DOM content");
+
+  // Verify single DOM option with expand/collapse view
+  assert(artifactReportHtml.includes("View Complete DOM (Expand)"), "Allure report has single Complete DOM expand/collapse option");
+  assert(artifactReportHtml.includes("toggleDomCollapse("), "Allure report has toggleDomCollapse function for expand/collapse");
+
+  // Verify high-contrast text and background styling for DOM readability
+  assert(artifactReportHtml.includes("#f0f6fc"), "Allure report DOM viewer uses high-contrast text color (#f0f6fc)");
+  assert(artifactReportHtml.includes(".dom-section"), "Allure report has high-contrast .dom-section styling");
+  assert(artifactReportHtml.includes("dom-tag"), "Allure report syntax highlights DOM tags with high contrast");
+  assert(artifactReportHtml.includes("dom-attr"), "Allure report syntax highlights DOM attributes with high contrast");
+  assert(artifactReportHtml.includes("dom-val"), "Allure report syntax highlights DOM values with high contrast");
+
+  // Verify wrap/unwrap functionality and complete line visibility
+  assert(artifactReportHtml.includes("toggleDomWrap("), "Allure report has toggleDomWrap function for wrap toggle");
+  assert(artifactReportHtml.includes("pre-wrap"), "DOM code view wraps by default for complete line visibility");
+  assert(artifactReportHtml.includes("wrap-label"), "Wrap button updates text label on toggle");
+
+  // Verify DOM is displayed within report only (no external tab navigation for full DOM)
+  assert(!artifactReportHtml.includes("Open Full DOM Dump"), "Full DOM is displayed within report only, not external links");
+
+  // Verify instance isolation: Each test record only contains its own execution artifacts
+  const currentRecords = behaveResultsManager.getRecords();
+  const paymentRecord = currentRecords.find((r) => r.scenarioName === "Payment card fails");
+  const loginRecord = currentRecords.find((r) => r.scenarioName === "User login fails");
+  assert(paymentRecord && paymentRecord.artifacts && paymentRecord.artifacts.length > 0, "Payment record has artifacts");
+  assert(loginRecord && loginRecord.artifacts && loginRecord.artifacts.length > 0, "Login record has artifacts");
+  assert(
+    !paymentRecord.artifacts.some((a) => a.name.includes("User_login_fails")),
+    "Payment record does NOT leak User login artifacts"
+  );
+  assert(
+    !loginRecord.artifacts.some((a) => a.name.includes("Payment_card_fails")),
+    "Login record does NOT leak Payment card artifacts"
+  );
+
+  console.log("ALL ALLURE FAILURE ARTIFACT (SCREENSHOT & DOM DUMP) CHECKS PASSED!");
+
   // Clean up reports dir generated during test
   const tmpReportsDir = path.resolve(__dirname, "../reports");
   if (fs.existsSync(tmpReportsDir)) {
     fs.rmSync(tmpReportsDir, { recursive: true, force: true });
   }
 
+  // 22. Verify Caps Dropdown, Feature Discovery & Main Screen Execution Logs / Results
+  console.log("\n--- Verifying Caps Dropdown, Feature Discovery & Main Screen Layout ---");
+  const panelHtml = fs.readFileSync(path.resolve(__dirname, "../media/liveRunPanel.html"), "utf-8");
+  assert(!panelHtml.includes("BEHAVE_RUN_SCRIPT_PLACEHOLDER"), "BEHAVE_RUN_SCRIPT_PLACEHOLDER removed to prevent VS Code API acquisition conflict");
+  assert(panelHtml.includes('id="discoveryScanStatus"'), "Discovery scan status indicator exists");
+  assert(panelHtml.includes('id="mainScreenLogsSection"'), "Main screen execution logs & results section exists on Discovery screen");
+  assert(panelHtml.includes('id="mainConsoleOut"'), "Main screen execution logs console exists");
+  assert(panelHtml.includes('id="openMainScreenBtn"'), "Open on Main Screen button exists");
+  assert(panelHtml.includes('id="discoveryCapsSelect"'), "Discovery caps dropdown exists");
+  assert(panelHtml.includes("Default Config (Auto-detect)"), "Caps dropdown has Default Config auto-detect option");
+  assert(panelHtml.includes("startExecution("), "startExecution helper handles elected feature/scenario execution");
+
+  // Verify detectConfigFiles finds all config files in workspace
+  const detectedCaps = detectConfigFiles(path.resolve(__dirname, ".."));
+  assert(detectedCaps.length >= 3, `detectConfigFiles found at least 3 caps files (actual: ${detectedCaps.length})`);
+  assert(detectedCaps.some((f) => f.includes("android_caps_v1.json")), "android_caps_v1.json detected");
+  assert(detectedCaps.some((f) => f.includes("ios_caps_v5.json")), "ios_caps_v5.json detected");
+  assert(detectedCaps.some((f) => f.includes("config.properties")), "config.properties detected");
+
+  // Verify command registration in package.json
+  const hasMainScreenCmd = pkgContent.contributes.commands.some(
+    (c: any) => c.command === "smartBehave.openMainScreen"
+  );
+  assert(hasMainScreenCmd, "smartBehave.openMainScreen command contributed in package.json");
+
+  // Verify extension icon exists and is associated with Main Editor Area tabs
+  assert(fs.existsSync(path.resolve(__dirname, "../data/logo.png")), "data/logo.png extension icon exists");
+  const liveRunWebviewSource = fs.readFileSync(path.resolve(__dirname, "../src/ui/liveRunWebview.ts"), "utf-8");
+  assert(
+    liveRunWebviewSource.includes("CucumberBehaveMainScreenPanel") &&
+      liveRunWebviewSource.includes("panel.iconPath = fs.existsSync(logoPngPath)"),
+    "CucumberBehaveMainScreenPanel associates extension icon with editor tab"
+  );
+  assert(
+    liveRunWebviewSource.includes("AllureReportPanel") &&
+      liveRunWebviewSource.includes("panel.iconPath = fs.existsSync(logoPngPath)"),
+    "AllureReportPanel associates extension icon with editor tab"
+  );
+  const configWebviewSource = fs.readFileSync(path.resolve(__dirname, "../src/ui/configWebview.ts"), "utf-8");
+  assert(
+    configWebviewSource.includes("SmartBehaveConfigPanel") &&
+      configWebviewSource.includes("panel.iconPath = fs.existsSync(logoPngPath)"),
+    "SmartBehaveConfigPanel associates extension icon with editor tab"
+  );
+
+  console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");
   console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");
+  console.log("ALL MAIN EDITOR AREA TAB EXTENSION ICON CHECKS PASSED!");
 });

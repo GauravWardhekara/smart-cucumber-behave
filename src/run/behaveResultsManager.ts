@@ -12,6 +12,17 @@ export interface CompletedStepRecord {
   durationMs?: number;
 }
 
+export interface TestArtifact {
+  name: string;
+  type: "screenshot" | "dom_dump" | "other";
+  filePath: string;
+  relativePath?: string;
+  fileSize?: number;
+  dataUri?: string;
+  snippet?: string;
+  content?: string;
+}
+
 export interface CompletedTestRecord {
   id: string;
   featureName: string;
@@ -30,6 +41,7 @@ export interface CompletedTestRecord {
   passedSteps: number;
   failedSteps: number;
   steps: CompletedStepRecord[];
+  artifacts?: TestArtifact[];
 }
 
 export interface ResultsSummary {
@@ -48,6 +60,7 @@ class BehaveResultsManager {
   private workspaceState?: vscode.Memento;
   private records: CompletedTestRecord[] = [];
   private readonly changeListeners = new Set<() => void>();
+  private readonly claimedArtifactPaths = new Set<string>();
 
   public initialize(context: vscode.ExtensionContext): void {
     this.workspaceState = context.workspaceState;
@@ -72,6 +85,233 @@ class BehaveResultsManager {
     }
   }
 
+  /**
+   * Scans candidate directories to discover screenshots and DOM dumps created on test failure.
+   * Scoped strictly to the specific test execution instance so artifacts from other tests are not leaked.
+   */
+  public findFailureArtifacts(
+    scenario: {
+      scenarioName: string;
+      featureName?: string;
+      timestamp?: number;
+      durationMs?: number;
+      featureFilePath?: string;
+    },
+    workspaceRoot?: string
+  ): TestArtifact[] {
+    const root =
+      workspaceRoot ||
+      (vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? process.cwd());
+
+    // Candidate directories where screenshots and dom dumps may be saved
+    const candidateDirs = [
+      path.join(root, "reports", "screenshots"),
+      path.join(root, "screenshots"),
+      path.join(root, "reports", "dom_dumps"),
+      path.join(root, "reports", "dom"),
+      path.join(root, "reports", "page_source"),
+      path.join(root, "dom_dumps"),
+      path.join(root, "dom"),
+      path.join(root, "page_source"),
+      path.join(root, "reports"),
+      path.join(root, "allure-results")
+    ];
+
+    if (scenario.featureFilePath) {
+      candidateDirs.push(path.dirname(scenario.featureFilePath));
+    }
+
+    const seenPaths = new Set<string>();
+
+    // Exact execution window for this specific test execution instance
+    const endTime = scenario.timestamp || Date.now();
+    const duration = scenario.durationMs && scenario.durationMs > 0 ? scenario.durationMs : 3000;
+    const startTime = endTime - duration;
+    // 2s lead before start and 8s teardown buffer after scenario end
+    const instanceWindowStart = startTime - 2000;
+    const instanceWindowEnd = endTime + 8000;
+
+    const scNameLower = scenario.scenarioName.toLowerCase();
+    const scSlug = scenario.scenarioName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+    const scCompact = scNameLower.replace(/[^a-z0-9]/g, "");
+
+    // Identify slugs and compact names belonging to OTHER scenarios in this run
+    // to strictly prevent cross-scenario artifact association
+    const otherScenarioIdentifiers = new Set<string>();
+    for (const r of this.records) {
+      if (r.scenarioName && r.scenarioName.toLowerCase() !== scNameLower) {
+        const otherSlug = r.scenarioName.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+        const otherCompact = r.scenarioName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        if (otherSlug.length >= 4) otherScenarioIdentifiers.add(otherSlug);
+        if (otherCompact.length >= 4) otherScenarioIdentifiers.add(otherCompact);
+      }
+    }
+
+    interface CandidateMatch {
+      artifact: TestArtifact;
+      score: number;
+    }
+
+    const screenshotCandidates: CandidateMatch[] = [];
+    const domCandidates: CandidateMatch[] = [];
+
+    for (const dir of candidateDirs) {
+      if (!fs.existsSync(dir)) continue;
+      try {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.isFile()) continue;
+          const fullPath = path.join(dir, entry.name);
+          const resolvedPath = path.resolve(fullPath);
+
+          if (seenPaths.has(resolvedPath)) continue;
+          // Skip if artifact was already claimed by another test execution instance
+          if (this.claimedArtifactPaths.has(resolvedPath)) continue;
+
+          const ext = path.extname(entry.name).toLowerCase();
+          const nameLower = entry.name.toLowerCase();
+          const fileCompact = nameLower.replace(/[^a-z0-9]/g, "");
+
+          // Determine artifact type
+          let type: "screenshot" | "dom_dump" | undefined;
+          if ([".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"].includes(ext)) {
+            type = "screenshot";
+          } else if (
+            [".html", ".xml", ".dom", ".htm", ".txt", ".json"].includes(ext) &&
+            (nameLower.includes("dom") ||
+              nameLower.includes("dump") ||
+              nameLower.includes("page_source") ||
+              nameLower.includes("source") ||
+              nameLower.includes("attachment") ||
+              dir.toLowerCase().includes("dom") ||
+              dir.toLowerCase().includes("page_source"))
+          ) {
+            type = "dom_dump";
+          }
+
+          if (!type) continue;
+
+          let stats: fs.Stats | undefined;
+          try {
+            stats = fs.statSync(fullPath);
+          } catch {
+            continue;
+          }
+
+          const mtime = stats.mtimeMs;
+
+          // Check if file clearly belongs to another scenario in the test run
+          let belongsToOtherScenario = false;
+          for (const otherId of otherScenarioIdentifiers) {
+            if (nameLower.includes(otherId) || fileCompact.includes(otherId)) {
+              belongsToOtherScenario = true;
+              break;
+            }
+          }
+          if (belongsToOtherScenario) {
+            continue;
+          }
+
+          // Check matching for this specific test execution instance
+          const isDirectNameMatch =
+            nameLower.includes(scSlug) ||
+            nameLower.includes(scNameLower) ||
+            (scCompact.length >= 4 && fileCompact.includes(scCompact));
+
+          const isWithinInstanceWindow =
+            mtime >= instanceWindowStart && mtime <= instanceWindowEnd;
+
+          let score = 0;
+          if (isDirectNameMatch) {
+            // Strong name match: check recency to prevent attaching files from days ago
+            const timeDelta = Math.abs(mtime - endTime);
+            if (timeDelta <= 1_800_000) { // within 30 minutes
+              score = 1000 - Math.min(400, Math.round(timeDelta / 1000));
+            }
+          } else if (isWithinInstanceWindow) {
+            // Generic/unnamed file generated strictly during this test execution instance
+            const timeDelta = Math.abs(mtime - endTime);
+            score = 500 - Math.min(300, Math.round(timeDelta / 1000));
+          }
+
+          if (score <= 0) continue;
+
+          seenPaths.add(resolvedPath);
+          const relPath = path.relative(root, fullPath).replace(/\\/g, "/");
+
+          let dataUri: string | undefined;
+          if (type === "screenshot" && stats.size <= 3_000_000) {
+            try {
+              const buf = fs.readFileSync(fullPath);
+              const mime =
+                ext === ".png"
+                  ? "image/png"
+                  : ext === ".jpg" || ext === ".jpeg"
+                    ? "image/jpeg"
+                    : "image/png";
+              dataUri = `data:${mime};base64,${buf.toString("base64")}`;
+            } catch {
+              /* ignore */
+            }
+          }
+
+          let content: string | undefined;
+          let snippet: string | undefined;
+          if (type === "dom_dump") {
+            try {
+              const raw = fs.readFileSync(fullPath, "utf-8");
+              content =
+                raw.length > 4_000_000
+                  ? raw.slice(0, 4_000_000) + "\n<!-- [DOM dump exceeds 4MB, truncated] -->"
+                  : raw;
+              snippet = content.slice(0, 3000);
+            } catch {
+              /* ignore */
+            }
+          }
+
+          const artifact: TestArtifact = {
+            name: entry.name,
+            type,
+            filePath: fullPath,
+            relativePath: relPath,
+            fileSize: stats.size,
+            dataUri,
+            snippet,
+            content
+          };
+
+          if (type === "screenshot") {
+            screenshotCandidates.push({ artifact, score });
+          } else if (type === "dom_dump") {
+            domCandidates.push({ artifact, score });
+          }
+        }
+      } catch {
+        /* ignore folder read errors */
+      }
+    }
+
+    // Pick top matching screenshot and top matching DOM dump for this execution instance
+    const selected: TestArtifact[] = [];
+
+    if (screenshotCandidates.length > 0) {
+      screenshotCandidates.sort((a, b) => b.score - a.score);
+      const topShot = screenshotCandidates[0].artifact;
+      selected.push(topShot);
+      this.claimedArtifactPaths.add(path.resolve(topShot.filePath));
+    }
+
+    if (domCandidates.length > 0) {
+      domCandidates.sort((a, b) => b.score - a.score);
+      const topDom = domCandidates[0].artifact;
+      selected.push(topDom);
+      this.claimedArtifactPaths.add(path.resolve(topDom.filePath));
+    }
+
+    return selected;
+  }
+
   public recordScenario(data: Omit<CompletedTestRecord, "id" | "dateFormatted">): CompletedTestRecord {
     const id = `rec_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const date = new Date(data.timestamp || Date.now());
@@ -83,10 +323,25 @@ class BehaveResultsManager {
       second: "2-digit"
     });
 
+    let artifacts = data.artifacts;
+    if ((!artifacts || artifacts.length === 0) && data.status === "failed") {
+      const found = this.findFailureArtifacts(data);
+      if (found.length > 0) {
+        artifacts = found;
+      }
+    } else if (artifacts && artifacts.length > 0) {
+      for (const a of artifacts) {
+        if (a.filePath) {
+          this.claimedArtifactPaths.add(path.resolve(a.filePath));
+        }
+      }
+    }
+
     const record: CompletedTestRecord = {
       ...data,
       id,
-      dateFormatted
+      dateFormatted,
+      artifacts
     };
 
     // Prepend new record (most recent first)
@@ -152,6 +407,7 @@ class BehaveResultsManager {
 
   public clearRecords(): void {
     this.records = [];
+    this.claimedArtifactPaths.clear();
     void this.persist();
     this.notifyChange();
   }
@@ -181,6 +437,27 @@ class BehaveResultsManager {
     }
 
     const reportIndexPath = path.join(reportsDir, "index.html");
+
+    // 0. Ensure already populated scenario artifacts are claimed
+    for (const r of this.records) {
+      if (r.artifacts) {
+        for (const a of r.artifacts) {
+          if (a.filePath) {
+            this.claimedArtifactPaths.add(path.resolve(a.filePath));
+          }
+        }
+      }
+    }
+
+    // Discover and link failure artifacts for failed scenarios that do not yet have artifacts
+    for (const r of this.records) {
+      if (r.status === "failed" && (!r.artifacts || r.artifacts.length === 0)) {
+        const found = this.findFailureArtifacts(r, root);
+        if (found.length > 0) {
+          r.artifacts = found;
+        }
+      }
+    }
 
     // 1. Check if allure CLI is available in PATH
     let hasAllureCli = false;
@@ -279,12 +556,163 @@ class BehaveResultsManager {
   }
 
   /**
+   * Highlights HTML/XML markup with high-contrast syntax tokens for in-report DOM viewing.
+   */
+  public highlightDomHtml(raw: string): string {
+    if (!raw) return "";
+    if (raw.length > 2_000_000) {
+      return this.escapeHtml(raw);
+    }
+
+    let escaped = raw
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Highlight XML declarations / processing instructions (e.g. <?xml ... ?>)
+    escaped = escaped.replace(/(&lt;\?[\s\S]*?\?&gt;)/g, '<span class="dom-comment">$1</span>');
+
+    // Highlight comments (e.g. <!-- ... -->)
+    escaped = escaped.replace(
+      /(&lt;!--[\s\S]*?--&gt;)/g,
+      '<span class="dom-comment">$1</span>'
+    );
+
+    // Highlight XML/HTML tags and attributes with rich contrast tokens
+    escaped = escaped.replace(
+      /(&lt;\/?)([a-zA-Z0-9_:-]+)([\s\S]*?)(\/?&gt;)/g,
+      (_match, open, tagName, attrs, close) => {
+        const highlightedAttrs = attrs.replace(
+          /([a-zA-Z0-9_:-]+)(\s*=\s*)("[^"]*"|'[^']*'|[^\s>]+)/g,
+          '<span class="dom-attr">$1</span>$2<span class="dom-val">$3</span>'
+        );
+        return `${open}<span class="dom-tag">${tagName}</span>${highlightedAttrs}${close}`;
+      }
+    );
+
+    return escaped;
+  }
+
+  private renderArtifactsHtml(sc: CompletedTestRecord, reportsDir: string): string {
+    const artifacts = sc.artifacts || [];
+    if (artifacts.length === 0) {
+      return "";
+    }
+
+    const attachmentsDir = path.join(reportsDir, "attachments");
+    if (!fs.existsSync(attachmentsDir)) {
+      try {
+        fs.mkdirSync(attachmentsDir, { recursive: true });
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const itemsHtml = artifacts
+      .map((art, index) => {
+        const destFile = path.join(attachmentsDir, path.basename(art.filePath));
+        if (fs.existsSync(art.filePath) && !fs.existsSync(destFile)) {
+          try {
+            fs.copyFileSync(art.filePath, destFile);
+          } catch {
+            /* ignore */
+          }
+        }
+
+        const relativeUrl = `attachments/${encodeURIComponent(path.basename(art.filePath))}`;
+        const sizeStr = art.fileSize ? `${Math.round(art.fileSize / 1024)} KB` : "";
+        const imgSrc = art.dataUri || relativeUrl;
+
+        if (art.type === "screenshot") {
+          return `
+          <div class="attachment-card attachment-screenshot">
+            <div class="attachment-top">
+              <span class="attachment-badge badge-screenshot">📸 Screenshot</span>
+              <span class="attachment-filename" title="${this.escapeHtml(art.filePath)}">${this.escapeHtml(art.name)}</span>
+              ${sizeStr ? `<span class="attachment-size">${sizeStr}</span>` : ""}
+            </div>
+            <div class="screenshot-thumb-container">
+              <img src="${imgSrc}" alt="Failure Screenshot: ${this.escapeHtml(art.name)}" class="screenshot-thumb" />
+            </div>
+          </div>`;
+        }
+
+        if (art.type === "dom_dump") {
+          const domId = `dom_${sc.id}_${index}`;
+          let fullDomText = art.content;
+          if (!fullDomText && fs.existsSync(art.filePath)) {
+            try {
+              fullDomText = fs.readFileSync(art.filePath, "utf-8");
+            } catch {
+              /* ignore */
+            }
+          }
+          if (!fullDomText) {
+            fullDomText = art.snippet || "No DOM content captured";
+          }
+
+          const lineCount = fullDomText.split(/\r\n|\r|\n/).length;
+          const highlightedDom = this.highlightDomHtml(fullDomText);
+          const safeRawScript = fullDomText.replace(/<\/script/gi, "<\\/script");
+
+          return `
+          <div class="attachment-card attachment-dom">
+            <div class="dom-section">
+              <div class="dom-header">
+                <div class="dom-title-bar">
+                  <span class="attachment-badge badge-dom">📄 Complete DOM Dump</span>
+                  <span class="dom-filename" title="${this.escapeHtml(art.filePath)}">${this.escapeHtml(art.name)}</span>
+                  <span class="dom-size-badge">${sizeStr ? `${sizeStr} • ` : ""}${lineCount} lines</span>
+                </div>
+                <div class="dom-header-actions">
+                  <button type="button" class="dom-action-btn dom-toggle-btn" onclick="toggleDomCollapse('${domId}', this)">
+                    <span>▶ View Complete DOM (Expand)</span>
+                  </button>
+                  <button type="button" class="dom-action-btn" onclick="copyDomCode('${domId}', this)" title="Copy entire DOM to clipboard">
+                    <span>📋 Copy DOM</span>
+                  </button>
+                  <button type="button" class="dom-action-btn dom-wrap-btn" onclick="toggleDomWrap('${domId}', this)" title="Toggle word wrap">
+                    <span class="wrap-icon">↔</span> <span class="wrap-label">Unwrap Lines</span>
+                  </button>
+                </div>
+              </div>
+              <div id="${domId}" class="dom-viewer-body collapsed">
+                <pre id="pre-${domId}" class="dom-code-view wrap"><code id="code-${domId}">${highlightedDom}</code></pre>
+              </div>
+              <script type="text/plain" id="raw-${domId}">${safeRawScript}</script>
+            </div>
+          </div>`;
+        }
+
+        return `
+        <div class="attachment-card">
+          <div class="attachment-top">
+            <span class="attachment-badge">📎 Artifact</span>
+            <span class="attachment-filename">${this.escapeHtml(art.name)}</span>
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    return `
+    <div class="scenario-attachments">
+      <div class="attachments-header">
+        <span>📎 Test Failure Artifacts (${artifacts.length})</span>
+      </div>
+      <div class="attachments-grid">
+        ${itemsHtml}
+      </div>
+    </div>`;
+  }
+
+  /**
    * Generates a modern, standalone Allure-style interactive HTML report.
    */
   private generateStandaloneAllureHtml(records: CompletedTestRecord[], workspaceRoot: string): string {
     const summary = this.getSummary();
     const passRate = summary.total > 0 ? Math.round((summary.passed / summary.total) * 100) : 0;
     const nowStr = new Date().toLocaleString();
+    const reportsDir = path.join(workspaceRoot, "reports", "allure-report");
 
     // Group by feature
     const featuresMap = new Map<string, CompletedTestRecord[]>();
@@ -331,6 +759,7 @@ class BehaveResultsManager {
               </div>
               <div class="scenario-body">
                 ${sc.errorMessage ? `<div class="failure-box"><strong>Error:</strong> ${this.escapeHtml(sc.errorMessage)}</div>` : ""}
+                ${this.renderArtifactsHtml(sc, reportsDir)}
                 <ul class="steps-list">
                   ${stepsHtml || "<li class='no-steps'>No recorded step details</li>"}
                 </ul>
@@ -557,6 +986,214 @@ class BehaveResultsManager {
     .badge-failed { background: rgba(248, 81, 73, 0.2); color: var(--fail-light); }
     .badge-skipped { background: rgba(139, 148, 158, 0.2); color: var(--text-muted); }
     .step-error { width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 4px; padding: 8px 12px; margin-top: 4px; color: #f85149; font-size: 12px; font-family: monospace; white-space: pre-wrap; }
+
+    /* Failure Artifacts (Screenshots & In-Report DOM Dumps) */
+    .scenario-attachments {
+      margin: 12px 0 16px;
+      padding: 12px 14px;
+      background: #161b22;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+    }
+    .attachments-header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-bright);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .attachments-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .attachment-card {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .attachment-card.attachment-dom {
+      padding: 0;
+      background: transparent;
+      border: none;
+    }
+    .attachment-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .attachment-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+    .badge-screenshot {
+      background: rgba(88, 166, 255, 0.2);
+      color: #58a6ff;
+      border: 1px solid rgba(88, 166, 255, 0.4);
+    }
+    .badge-dom {
+      background: rgba(210, 153, 34, 0.25);
+      color: #f2cc60;
+      border: 1px solid rgba(210, 153, 34, 0.5);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      letter-spacing: 0.3px;
+    }
+    .attachment-filename {
+      font-size: 12px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: monospace;
+    }
+    .attachment-size {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .screenshot-thumb-container {
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid #30363d;
+      background: #010409;
+      text-align: center;
+      padding: 4px;
+    }
+    .screenshot-thumb {
+      max-width: 100%;
+      max-height: 240px;
+      display: block;
+      margin: 0 auto;
+      object-fit: contain;
+      border-radius: 2px;
+    }
+
+    /* Complete In-Report DOM Viewer with High Contrast */
+    .dom-section {
+      width: 100%;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      background: #0d1117;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .dom-header {
+      padding: 10px 14px;
+      background: #161b22;
+      border-bottom: 1px solid #30363d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .dom-title-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .dom-filename {
+      font-size: 12px;
+      font-family: Consolas, monospace;
+      color: #f0f6fc;
+      font-weight: 600;
+    }
+    .dom-size-badge {
+      font-size: 11px;
+      color: #c9d1d9;
+      background: #21262d;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid #30363d;
+      font-weight: 500;
+    }
+    .dom-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .dom-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      color: #f0f6fc;
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .dom-action-btn:hover {
+      background: #30363d;
+      border-color: #58a6ff;
+      color: #58a6ff;
+    }
+    .dom-toggle-btn {
+      background: #1f6feb;
+      border-color: #388bfd;
+      color: #ffffff;
+    }
+    .dom-toggle-btn:hover {
+      background: #388bfd;
+      border-color: #58a6ff;
+      color: #ffffff;
+    }
+    .dom-toggle-btn.expanded {
+      background: #30363d;
+      border-color: #6e7681;
+      color: #f0f6fc;
+    }
+    .dom-viewer-body {
+      background: #0d1117;
+      max-height: 560px;
+      overflow-y: auto;
+      overflow-x: auto;
+      padding: 14px 18px;
+      border-top: 1px solid #21262d;
+      box-sizing: border-box;
+    }
+    .dom-viewer-body.collapsed {
+      display: none;
+    }
+    .dom-code-view {
+      margin: 0;
+      font-family: "SF Mono", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      color: #f0f6fc;
+      background: transparent;
+      tab-size: 2;
+      /* By default wrap lines so long lines and all attributes are 100% visible */
+      white-space: pre-wrap !important;
+      word-break: break-word !important;
+      overflow-wrap: anywhere !important;
+    }
+    .dom-code-view.nowrap {
+      white-space: pre !important;
+      word-break: normal !important;
+      overflow-wrap: normal !important;
+    }
+    .dom-tag { color: #7ee787; font-weight: 700; }
+    .dom-attr { color: #79c0ff; font-weight: 600; }
+    .dom-val { color: #ffab70; font-weight: 500; }
+    .dom-comment { color: #8b949e; font-style: italic; }
+
     footer { margin-top: 40px; text-align: center; font-size: 12px; color: var(--text-muted); border-top: 1px solid var(--border); padding-top: 20px; }
   </style>
 </head>
@@ -645,6 +1282,72 @@ class BehaveResultsManager {
         const visibleScenarios = suite.querySelectorAll('.scenario-card:not([style*="display: none"])');
         suite.style.display = visibleScenarios.length > 0 ? '' : 'none';
       });
+    }
+
+    function toggleDomCollapse(domId, btn) {
+      const el = document.getElementById(domId);
+      if (!el) return;
+      const isCollapsed = el.classList.contains('collapsed');
+      if (isCollapsed) {
+        el.classList.remove('collapsed');
+        btn.innerHTML = '<span>▼ Collapse Complete DOM</span>';
+        btn.classList.add('expanded');
+      } else {
+        el.classList.add('collapsed');
+        btn.innerHTML = '<span>▶ View Complete DOM (Expand)</span>';
+        btn.classList.remove('expanded');
+      }
+    }
+
+    function copyDomCode(domId, btn) {
+      const rawEl = document.getElementById('raw-' + domId);
+      let text = rawEl ? rawEl.textContent : '';
+      if (!text) {
+        const codeEl = document.getElementById('code-' + domId);
+        text = codeEl ? codeEl.innerText : '';
+      }
+      const notifySuccess = () => {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span>✓ Copied!</span>';
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(notifySuccess).catch(() => fallbackCopy(text, btn));
+      } else {
+        fallbackCopy(text, btn);
+      }
+    }
+
+    function fallbackCopy(text, btn) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<span>✓ Copied!</span>';
+        setTimeout(() => { btn.innerHTML = orig; }, 1800);
+      } catch (e) {
+        /* ignore */
+      }
+      document.body.removeChild(ta);
+    }
+
+    function toggleDomWrap(domId, btn) {
+      const preEl = document.getElementById('pre-' + domId);
+      if (!preEl) return;
+      const isNowrap = preEl.classList.toggle('nowrap');
+      const label = btn.querySelector('.wrap-label');
+      if (isNowrap) {
+        if (label) label.textContent = 'Wrap Lines';
+        btn.classList.add('nowrap-active');
+      } else {
+        if (label) label.textContent = 'Unwrap Lines';
+        btn.classList.remove('nowrap-active');
+      }
     }
   </script>
 </body>

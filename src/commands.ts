@@ -28,7 +28,7 @@ import { promptOrResolveCapsFile } from "./run/behaveConfigFile";
 import { behaveTestController } from "./testController";
 import { stepDefinitionIndex } from "./language/stepIndex";
 import { featureStepIndex } from "./language/featureStepIndex";
-import { revealLiveRunPanel } from "./ui/liveRunWebview";
+import { revealLiveRunPanel, openMainScreenPanel } from "./ui/liveRunWebview";
 import { executeGenerateStepDefinition, GeneratedStepSnippet } from "./language/stepCodeActionProvider";
 import { behaveResultsManager } from "./run/behaveResultsManager";
 
@@ -400,6 +400,18 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         fn: async () => {
           await behaveTestController.discoverAll();
           void vscode.window.showInformationMessage("Cucumber-Behave: Feature discovery refreshed.");
+        }
+      },
+      {
+        name: "smartBehave.openMainScreen",
+        fn: () => {
+          openMainScreenPanel();
+        }
+      },
+      {
+        name: "behave.openMainScreen",
+        fn: () => {
+          openMainScreenPanel();
         }
       },
       {
