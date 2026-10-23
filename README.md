@@ -2,7 +2,7 @@
 
 [![Visual Studio Marketplace](https://img.shields.io/badge/VS%20Code-Smart%20Cucumber--Behave-blue.svg)](https://marketplace.visualstudio.com)
 [![Open VSX](https://img.shields.io/badge/Open%20VSX-Smart%20Cucumber--Behave-purple.svg)](https://open-vsx.org)
-[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/GauravWardhekara/smart-cucumber-behave/releases)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](https://github.com/GauravWardhekara/smart-cucumber-behave/releases)
 [![Issues](https://img.shields.io/github/issues/GauravWardhekara/smart-cucumber-behave.svg)](https://github.com/GauravWardhekara/smart-cucumber-behave/issues)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cucumber](https://img.shields.io/badge/Cucumber-Language%20Server-green.svg)](https://cucumber.io/)

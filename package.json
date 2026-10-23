@@ -3,7 +3,7 @@
   "publisher": "GauravWardhekar",
   "description": "Comprehensive Cucumber & Behave support for VS Code: Official Cucumber Language Server (multilingual step definitions, autocomplete, diagnostics, formatting) + Smart Behave Runner (Test Explorer, Live Run panel, CodeLens, Interactive Configuration).",
   "displayName": "Smart Cucumber-Behave",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "license": "MIT",
   "author": "Gaurav Wardhekar <gauravwardhekar@gmail.com>",
   "contributors": [
