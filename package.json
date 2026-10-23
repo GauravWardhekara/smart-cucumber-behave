@@ -866,7 +866,7 @@
     "esbuild": "node esbuild.js",
     "compile": "npm run check-ts && npm run esbuild && npm run copy-wasms",
     "check-ts": "tsc --noEmit",
-    "test": "node -e \"const esbuild = require('esbuild'); esbuild.buildSync({ entryPoints: ['test/verify.ts'], bundle: true, platform: 'node', external: ['vscode'], outfile: 'out/verify.cjs' });\" && node out/verify.cjs && node -e \"require('fs').unlinkSync('out/verify.cjs')\"",
+    "test": "node scripts/copy-wasms.js && node -e \"const esbuild = require('esbuild'); esbuild.buildSync({ entryPoints: ['test/verify.ts'], bundle: true, platform: 'node', external: ['vscode'], outfile: 'out/verify.cjs' });\" && node out/verify.cjs && node -e \"require('fs').unlinkSync('out/verify.cjs')\"",
     "watch": "node esbuild.js --watch",
     "package": "node scripts/package-registry.js --all",
     "package:vscode": "node scripts/package-registry.js --registry=vscode",

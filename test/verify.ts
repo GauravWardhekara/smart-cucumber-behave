@@ -296,6 +296,12 @@ const expectedWasms = [
   "tree-sitter.wasm",
   "tsx.wasm"
 ];
+if (!fs.existsSync(wasmDir) || !expectedWasms.every((w) => fs.existsSync(path.join(wasmDir, w)))) {
+  const copyScript = path.resolve(__dirname, "../scripts/copy-wasms.js");
+  if (fs.existsSync(copyScript)) {
+    require(copyScript);
+  }
+}
 for (const wasm of expectedWasms) {
   const wasmPath = path.join(wasmDir, wasm);
   assert(fs.existsSync(wasmPath), `WASM file exists: ${wasm}`);
