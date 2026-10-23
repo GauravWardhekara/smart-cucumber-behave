@@ -820,7 +820,17 @@ Feature: Maximo REST API Verification
     "SmartBehaveConfigPanel associates extension icon with editor tab"
   );
 
+  // Verify GitHub Release Workflow exists and is valid
+  const workflowPath = path.resolve(__dirname, "../.github/workflows/release.yml");
+  assert(fs.existsSync(workflowPath), ".github/workflows/release.yml exists");
+  const workflowContent = fs.readFileSync(workflowPath, "utf-8");
+  assert(workflowContent.includes("name: Release"), "Workflow name is Release");
+  assert(workflowContent.includes("softprops/action-gh-release"), "Workflow uses action-gh-release to upload release assets");
+  assert(workflowContent.includes("npm run package"), "Workflow executes npm run package to build VSIX artifacts");
+  assert(workflowContent.includes("*.vsix"), "Workflow targets *.vsix assets");
+
   console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");
   console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");
   console.log("ALL MAIN EDITOR AREA TAB EXTENSION ICON CHECKS PASSED!");
+  console.log("ALL GITHUB RELEASE WORKFLOW CHECKS PASSED!");
 });
