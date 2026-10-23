@@ -1442,19 +1442,33 @@
         execStatusIcon.style.color = isSuccess ? "var(--pass-color)" : "var(--fail-color)";
       }
 
+      let scrollRafPending = false;
+      function scheduleConsoleScroll() {
+        if (scrollRafPending) return;
+        scrollRafPending = true;
+        requestAnimationFrame(() => {
+          scrollRafPending = false;
+          if (execConsoleOut) {
+            execConsoleOut.scrollTop = execConsoleOut.scrollHeight;
+          }
+          if (mainConsoleOut) {
+            mainConsoleOut.scrollTop = mainConsoleOut.scrollHeight;
+          }
+        });
+      }
+
       function appendConsole(text) {
         if (!text) return;
         // Strip ANSI colors or format basic ANSI
         const clean = text.replace(/\x1b\[[0-9;]*m/g, "");
         consoleLogLines.push(clean);
         if (execConsoleOut) {
-          execConsoleOut.textContent += clean;
-          execConsoleOut.scrollTop = execConsoleOut.scrollHeight;
+          execConsoleOut.appendChild(document.createTextNode(clean));
         }
         if (mainConsoleOut) {
-          mainConsoleOut.textContent += clean;
-          mainConsoleOut.scrollTop = mainConsoleOut.scrollHeight;
+          mainConsoleOut.appendChild(document.createTextNode(clean));
         }
+        scheduleConsoleScroll();
       }
 
       function addLiveStep(stepKey, keyword, text, status) {
@@ -1670,7 +1684,7 @@
           case "runStatus":
             if (msg.isRunning) {
               startExecutionUi("Running tests…");
-            } else {
+            } else if (isExecuting) {
               finishExecutionUi(true);
             }
             break;
@@ -1771,16 +1785,58 @@
 
           case "clear":
             consoleLogLines = [];
-            execConsoleOut.textContent = "";
-            execProgressList.innerHTML = "";
+            if (execConsoleOut) execConsoleOut.textContent = "";
+            if (execProgressList) {
+              execProgressList.innerHTML = '<div class="empty-state" style="padding:15px;"><span class="empty-state-desc">Live test progression and steps will appear here as tests execute.</span></div>';
+            }
             if (mainConsoleOut) mainConsoleOut.textContent = "";
             break;
 
           case "replayCapture":
             if (Array.isArray(msg.messages)) {
+              let batchedLogs = "";
               for (const m of msg.messages) {
-                if (m && m.type === "raw_log") appendConsole(m.text);
-                else if (m && m.type === "step") appendConsole(`    ${m.keyword} ${m.text} ... ${m.status}\n`);
+                if (!m) continue;
+                switch (m.type) {
+                  case "run_started":
+                    startExecutionUi(m.label);
+                    batchedLogs += `\n[Execution Started] ${m.label || ""}\n${m.command ? m.command + '\n' : ''}`;
+                    break;
+                  case "feature":
+                    batchedLogs += `\nFeature: ${m.label || ""}\n`;
+                    break;
+                  case "scenario":
+                    batchedLogs += `\n  Scenario: ${m.name || ""}\n`;
+                    break;
+                  case "step_started":
+                    addLiveStep(m.stepKey, m.keyword, m.text, "running");
+                    break;
+                  case "step":
+                    addLiveStep(m.stepKey, m.keyword, m.text, m.status);
+                    batchedLogs += `    ${m.keyword} ${m.text} ... ${m.status}\n`;
+                    if (m.error) {
+                      batchedLogs += `    [ERROR] ${m.error}\n`;
+                    }
+                    break;
+                  case "step_log_append":
+                  case "hook_stdout":
+                  case "raw_log":
+                    if (m.text) batchedLogs += m.text;
+                    break;
+                  case "runCancelled":
+                    batchedLogs += "\n[Execution Cancelled by User]\n";
+                    finishExecutionUi(false, "Run cancelled");
+                    break;
+                  case "run_finished":
+                    const passed = m.exitCode === 0;
+                    const dur = m.duration ? ` in ${(m.duration).toFixed(1)}s` : "";
+                    batchedLogs += `\n[Execution Finished] Exit code: ${m.exitCode}${dur}\n`;
+                    finishExecutionUi(passed, passed ? `All tests passed${dur}` : `Tests finished with failures (code ${m.exitCode})`);
+                    break;
+                }
+              }
+              if (batchedLogs) {
+                appendConsole(batchedLogs);
               }
             }
             break;

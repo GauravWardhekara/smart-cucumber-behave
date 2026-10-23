@@ -161,19 +161,15 @@ function shrinkCaptureIfNeeded(messages: unknown[]): unknown[] {
 }
 
 function persistLivePanelCaptureNowImpl(): void {
+  // Stale console logs are never persisted across VS Code sessions to ensure the
+  // Execution tab opens instantly and starts cleanly without displaying outdated logs.
   const memento = workspaceStateForLivePanel;
-  if (!memento || livePanelCapture.length <= 1) {
-    return;
-  }
-  try {
-    const data = shrinkCaptureIfNeeded(livePanelCapture);
-    const json = JSON.stringify(data);
-    if (json.length > MAX_CAPTURE_JSON_BYTES) {
-      return;
+  if (memento) {
+    try {
+      void memento.update(LIVE_PANEL_CAPTURE_KEY, undefined);
+    } catch {
+      /* ignore */
     }
-    void memento.update(LIVE_PANEL_CAPTURE_KEY, data);
-  } catch {
-    /* ignore */
   }
 }
 
@@ -333,6 +329,8 @@ function postResultsDataToWebview(webview: vscode.Webview): void {
 export function registerLiveRunWebview(context: vscode.ExtensionContext): void {
   extensionContextForLivePanel = context;
   workspaceStateForLivePanel = context.workspaceState;
+  // Clear any legacy stale capture so outdated console outputs never display
+  void context.workspaceState.update(LIVE_PANEL_CAPTURE_KEY, undefined);
   const provider = new LiveRunWebviewProvider(context.extensionUri);
 
   try {
@@ -466,7 +464,12 @@ export class CucumberBehaveMainScreenPanel {
     );
 
     postResultsDataToWebview(this.panel.webview);
-    postStoredLivePanelReplay(this.panel.webview);
+    if (isBehaveRunActive() && livePanelCapture.length > 0) {
+      void this.panel.webview.postMessage({
+        type: "replayCapture",
+        messages: livePanelCapture
+      });
+    }
     void this.panel.webview.postMessage({
       type: "switchToTab",
       tab: "execution"
@@ -632,17 +635,13 @@ class LiveRunWebviewProvider implements vscode.WebviewViewProvider {
 }
 
 function postStoredLivePanelReplay(webview: vscode.Webview): void {
-  const memento = workspaceStateForLivePanel;
-  if (!memento) {
-    return;
-  }
-  const saved = memento.get<unknown[]>(LIVE_PANEL_CAPTURE_KEY);
-  if (!Array.isArray(saved) || saved.length === 0) {
+  // Only replay live capture if an execution is actively in progress
+  if (!isBehaveRunActive() || livePanelCapture.length === 0) {
     return;
   }
   const replay: LivePanelToWebviewMessage = {
     type: "replayCapture",
-    messages: saved
+    messages: livePanelCapture
   };
   void webview.postMessage(replay);
 }
@@ -756,11 +755,17 @@ async function handleLiveRunWebviewMessage(
     });
     void postDiscoveryDataToWebview(webview);
     postResultsDataToWebview(webview);
+    const isRunning = isBehaveRunActive();
     void webview.postMessage({
       type: "runStatus",
-      isRunning: isBehaveRunActive()
+      isRunning
     });
-    postStoredLivePanelReplay(webview);
+    if (isRunning && livePanelCapture.length > 0) {
+      void webview.postMessage({
+        type: "replayCapture",
+        messages: livePanelCapture
+      });
+    }
     return;
   }
 

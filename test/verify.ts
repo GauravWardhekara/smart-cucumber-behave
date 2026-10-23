@@ -829,8 +829,20 @@ Feature: Maximo REST API Verification
   assert(workflowContent.includes("npm run package"), "Workflow executes npm run package to build VSIX artifacts");
   assert(workflowContent.includes("*.vsix"), "Workflow targets *.vsix assets");
 
+  // Verify Fast Loading & Fresh Execution State on Main Screen Execution Tab
+  const panelHtmlContent = fs.readFileSync(path.resolve(__dirname, "../media/liveRunPanel.html"), "utf-8");
+  assert(panelHtmlContent.includes("scheduleConsoleScroll"), "Console uses scheduleConsoleScroll with requestAnimationFrame");
+  assert(panelHtmlContent.includes("appendChild(document.createTextNode(clean))"), "Console uses fast O(1) appendChild TextNode rendering");
+  assert(!panelHtmlContent.includes("execConsoleOut.textContent += clean"), "Console does not perform slow O(N^2) textContent += clean reallocations");
+  assert(panelHtmlContent.includes("batchedLogs"), "Replay capture batches incoming logs into a single render to eliminate layout thrashing");
+
+  assert(!liveRunWebviewSource.includes("postStoredLivePanelReplay(this.panel.webview)"), "CucumberBehaveMainScreenPanel constructor does not replay stale logs");
+  assert(liveRunWebviewSource.includes("if (!isBehaveRunActive() || livePanelCapture.length === 0)"), "postStoredLivePanelReplay only replays if run is actively in progress");
+  assert(liveRunWebviewSource.includes("context.workspaceState.update(LIVE_PANEL_CAPTURE_KEY, undefined)"), "Clears legacy stale captures on startup");
+
   console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");
   console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");
   console.log("ALL MAIN EDITOR AREA TAB EXTENSION ICON CHECKS PASSED!");
   console.log("ALL GITHUB RELEASE WORKFLOW CHECKS PASSED!");
+  console.log("ALL FAST EXECUTION CONSOLE & FRESH RUN STATE CHECKS PASSED!");
 });
