@@ -93,7 +93,8 @@ export type LivePanelFromWebviewMessage =
   | { type: "generateAllure" }
   | { type: "viewAllure" }
   | { type: "openMainScreen" }
-  | { type: "setDefaultCaps"; capsFile: string };
+  | { type: "setDefaultCaps"; capsFile: string }
+  | { type: "sendToAgentChat"; text: string };
 
 export function isLivePanelFromWebviewMessage(
   msg: unknown

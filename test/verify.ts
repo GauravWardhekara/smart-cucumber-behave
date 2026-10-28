@@ -9,6 +9,8 @@ Module.prototype.require = function (id: string) {
     return {
       window: {
         showQuickPick: () => Promise.resolve(undefined),
+        showInformationMessage: () => Promise.resolve(undefined),
+        showWarningMessage: () => Promise.resolve(undefined),
         createOutputChannel: () => ({
           append: () => {},
           appendLine: () => {},
@@ -17,6 +19,16 @@ Module.prototype.require = function (id: string) {
           error: () => {},
           dispose: () => {}
         })
+      },
+      env: {
+        clipboard: {
+          writeText: (_t: string) => Promise.resolve()
+        }
+      },
+      commands: {
+        registerCommand: () => ({ dispose: () => {} }),
+        executeCommand: () => Promise.resolve(),
+        getCommands: () => Promise.resolve(["workbench.action.chat.open"])
       },
       workspace: {
         getWorkspaceFolder: () => undefined,
@@ -81,6 +93,7 @@ import { findMatchingDefinitions, parseStepLine } from "../src/core/stepMatcher"
 import { computeFeatureSemanticTokenSpans } from "../src/core/featureSemanticTokens";
 import { computeFeatureFormatLineEdits } from "../src/core/featureFormat";
 import { escapeBehaveNameSelect } from "../src/core/behaveNameSelect";
+import { formatAgentChatPrompt } from "../src/ui/agentChatPrompt";
 
 function assert(condition: boolean, msg: string) {
   if (!condition) {
@@ -845,6 +858,46 @@ Feature: Maximo REST API Verification
   assert(!liveRunWebviewSource.includes("postStoredLivePanelReplay(this.panel.webview)"), "CucumberBehaveMainScreenPanel constructor does not replay stale logs");
   assert(liveRunWebviewSource.includes("if (!isBehaveRunActive() || livePanelCapture.length === 0)"), "postStoredLivePanelReplay only replays if run is actively in progress");
   assert(liveRunWebviewSource.includes("context.workspaceState.update(LIVE_PANEL_CAPTURE_KEY, undefined)"), "Clears legacy stale captures on startup");
+
+  // --- Verifying Send to Agent Chat from Execution Log ---
+  console.log("\n--- Verifying Send to Agent Chat from Execution Log ---");
+  const sampleLog = "AssertionError: Expected 200 OK but received 500 Internal Server Error\n  File 'steps/basic.py', line 42";
+  const formattedPrompt = formatAgentChatPrompt(sampleLog);
+  assert(formattedPrompt.includes("```log"), "Prompt formats log in code block");
+  assert(formattedPrompt.includes("AssertionError: Expected 200 OK"), "Prompt contains exact selected log text");
+  assert(formattedPrompt.includes("Please analyze this execution log section"), "Prompt requests analysis and fixes");
+
+  const agentChatSource = fs.readFileSync(path.resolve(__dirname, "../src/ui/agentChat.ts"), "utf-8");
+  assert(agentChatSource.includes("workbench.action.chat.open"), "agentChat checks workbench.action.chat.open command");
+  assert(agentChatSource.includes("vscode.env.clipboard.writeText(prompt)"), "agentChat copies formatted prompt to clipboard");
+  assert(agentChatSource.includes("formatAgentChatPrompt(text)"), "agentChat formats prompt with execution log context");
+
+  // Check package.json contributes
+  const hasSendChatCmd = pkgContent.contributes.commands.some(
+    (c: any) => c.command === "smartBehave.sendToAgentChat" && c.icon === "$(sparkle)"
+  );
+  assert(hasSendChatCmd, "smartBehave.sendToAgentChat command contributed with sparkle icon in package.json");
+
+  // Check livePanelProtocol.ts
+  const protocolSource = fs.readFileSync(path.resolve(__dirname, "../src/ui/livePanelProtocol.ts"), "utf-8");
+  assert(protocolSource.includes('"sendToAgentChat"') && protocolSource.includes("text: string"), "LivePanelFromWebviewMessage protocol includes sendToAgentChat");
+
+  // Check liveRunWebview.ts message handling
+  assert(liveRunWebviewSource.includes('msg.type === "sendToAgentChat"'), "liveRunWebview handles sendToAgentChat message");
+  assert(liveRunWebviewSource.includes("sendExecutionLogToAgentChat(msg.text)"), "liveRunWebview calls sendExecutionLogToAgentChat");
+
+  // Check commands.ts registration
+  const commandsSource = fs.readFileSync(path.resolve(__dirname, "../src/commands.ts"), "utf-8");
+  assert(commandsSource.includes('"smartBehave.sendToAgentChat"'), "commands.ts registers smartBehave.sendToAgentChat");
+
+  // Check liveRunPanel.html UI elements & logic
+  assert(panelHtmlContent.includes('id="sendToAgentChatFloatingBtn"'), "Execution screen contains sendToAgentChatFloatingBtn");
+  assert(panelHtmlContent.includes('class="send-to-agent-floating-btn"'), "Execution screen has send-to-agent-floating-btn styling");
+  assert(panelHtmlContent.includes('id="execSendAgentBtn"'), "Execution toolbar contains execSendAgentBtn");
+  assert(panelHtmlContent.includes("updateAgentChatSelection"), "Execution log screen has updateAgentChatSelection handler");
+  assert(panelHtmlContent.includes('type: "sendToAgentChat"'), "Execution log screen sends sendToAgentChat message on click");
+
+  console.log("ALL SEND TO AGENT CHAT VERIFICATION CHECKS PASSED!");
 
   console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");
   console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");

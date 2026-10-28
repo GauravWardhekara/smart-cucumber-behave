@@ -595,6 +595,46 @@
       display: flex;
     }
 
+    /* Floating action button for Send to Agent Chat */
+    .send-to-agent-floating-btn {
+      position: fixed;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: var(--vscode-button-background, #0e639c);
+      color: var(--vscode-button-foreground, #ffffff);
+      border: 1px solid var(--vscode-button-border, rgba(255, 255, 255, 0.2));
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+      z-index: 10000;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: transform 0.12s ease, background 0.15s ease, opacity 0.15s ease;
+      white-space: nowrap;
+      pointer-events: auto;
+    }
+    .send-to-agent-floating-btn:hover {
+      background: var(--vscode-button-hoverBackground, #1177bb);
+      transform: translateY(-1px);
+    }
+    .send-to-agent-floating-btn:active {
+      transform: translateY(0);
+    }
+    .send-to-agent-floating-btn .codicon {
+      font-size: 13px;
+    }
+    .send-to-agent-floating-btn.sent {
+      background: var(--pass-color, #73c991) !important;
+      color: #111111 !important;
+      border-color: rgba(0, 0, 0, 0.2);
+    }
+      display: flex;
+    }
+
     /* === RESULTS TAB === */
     .allure-action-banner {
       display: flex;
@@ -816,6 +856,9 @@
               <strong style="font-size:12px;">Execution Logs & Test Results</strong>
             </div>
             <div style="display:flex; gap:4px; align-items:center; margin-left:auto;">
+              <button class="btn btn-primary" id="mainSendAgentBtn" style="display:none;" title="Send selected log to Agent Chat">
+                <i class="codicon codicon-sparkle"></i> Send to Agent Chat
+              </button>
               <button class="btn btn-primary" id="openMainScreenBtn" title="Open full execution logs and test results on the main screen editor area">
                 <i class="codicon codicon-screen-full"></i> Main Screen
               </button>
@@ -869,6 +912,11 @@
               <i class="codicon codicon-debug-stop"></i> Stop
             </button>
             <button class="btn" id="execRerunBtn" title="Rerun last execution">
+              <i class="codicon codicon-refresh"></i> Rerun
+            </button>
+            <button class="btn btn-primary" id="execSendAgentBtn" style="display:none;" title="Send selected execution log to Agent Chat">
+              <i class="codicon codicon-sparkle"></i> Send to Agent Chat
+            </button>
               <i class="codicon codicon-refresh"></i> Rerun
             </button>
             <button class="icon-btn" id="execFindBtn" title="Find in console">
@@ -982,6 +1030,12 @@
         </div>
       </section>
     </main>
+
+    <!-- Floating Action Button for Send to Agent Chat on Text Selection -->
+    <div id="sendToAgentChatFloatingBtn" class="send-to-agent-floating-btn" title="Send selected log section to Agent Chat">
+      <i class="codicon codicon-sparkle"></i>
+      <span class="btn-text">Send to Agent Chat</span>
+    </div>
   </div>
 
   <script>
@@ -1392,6 +1446,9 @@
       const execFindCloseBtn = document.getElementById("execFindCloseBtn");
       const execProgressList = document.getElementById("execProgressList");
       const execConsoleOut = document.getElementById("execConsoleOut");
+      const execSendAgentBtn = document.getElementById("execSendAgentBtn");
+      const mainSendAgentBtn = document.getElementById("mainSendAgentBtn");
+      const sendToAgentFloatingBtn = document.getElementById("sendToAgentChatFloatingBtn");
 
       execStopBtn.addEventListener("click", () => {
         if (vscode) vscode.postMessage({ type: "stopRun" });
@@ -1469,6 +1526,206 @@
           mainConsoleOut.appendChild(document.createTextNode(clean));
         }
         scheduleConsoleScroll();
+      }
+
+      // === AGENT CHAT SELECTION ON EXECUTION LOGS ===
+      let selectedExecutionLogText = "";
+      let isSendingToAgent = false;
+
+      function triggerSendToAgent(text) {
+        const clean = (text || "").trim();
+        if (!clean) return;
+        isSendingToAgent = true;
+
+        if (sendToAgentFloatingBtn) {
+          sendToAgentFloatingBtn.classList.add("sent");
+          sendToAgentFloatingBtn.innerHTML = '<i class="codicon codicon-check"></i> <span>Sent to Agent Chat!</span>';
+        }
+
+        if (vscode) {
+          vscode.postMessage({
+            type: "sendToAgentChat",
+            text: clean
+          });
+        }
+
+        setTimeout(() => {
+          hideAgentChatButtons();
+          isSendingToAgent = false;
+          if (sendToAgentFloatingBtn) {
+            sendToAgentFloatingBtn.classList.remove("sent");
+            sendToAgentFloatingBtn.innerHTML = '<i class="codicon codicon-sparkle"></i> <span>Send to Agent Chat</span>';
+          }
+        }, 1200);
+      }
+
+      function hideAgentChatButtons() {
+        if (isSendingToAgent) return;
+        if (sendToAgentFloatingBtn) {
+          sendToAgentFloatingBtn.style.display = "none";
+        }
+        if (execSendAgentBtn) {
+          execSendAgentBtn.style.display = "none";
+        }
+        if (mainSendAgentBtn) {
+          mainSendAgentBtn.style.display = "none";
+        }
+        selectedExecutionLogText = "";
+      }
+
+      function isNodeInConsole(node) {
+        if (!node) return false;
+        const consolePane = document.querySelector(".console-pane");
+        const execOut = execConsoleOut;
+        const mainOut = mainConsoleOut;
+        const mainBox = document.querySelector(".mainscreen-console-box");
+
+        let cur = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+        while (cur) {
+          if (cur === execOut || cur === mainOut || cur === consolePane || cur === mainBox) {
+            return true;
+          }
+          cur = cur.parentNode;
+        }
+        return false;
+      }
+
+      function updateAgentChatSelection() {
+        if (isSendingToAgent) return;
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) {
+          hideAgentChatButtons();
+          return;
+        }
+
+        const anchor = sel.anchorNode;
+        const focus = sel.focusNode;
+
+        const inConsole = isNodeInConsole(anchor) || isNodeInConsole(focus);
+        if (!inConsole) {
+          hideAgentChatButtons();
+          return;
+        }
+
+        const text = sel.toString().trim();
+        if (!text) {
+          hideAgentChatButtons();
+          return;
+        }
+
+        selectedExecutionLogText = text;
+
+        if (execSendAgentBtn) {
+          execSendAgentBtn.style.display = "inline-flex";
+        }
+        if (mainSendAgentBtn) {
+          mainSendAgentBtn.style.display = "inline-flex";
+        }
+
+        if (sendToAgentFloatingBtn) {
+          try {
+            const range = sel.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            if (rect && (rect.width > 0 || rect.height > 0)) {
+              let top = rect.top - 38;
+              if (top < 10) {
+                top = rect.bottom + 8;
+              }
+              let left = rect.left + (rect.width / 2) - 80;
+              if (left < 10) left = 10;
+              const maxLeft = Math.max(10, window.innerWidth - 190);
+              if (left > maxLeft) left = maxLeft;
+
+              sendToAgentFloatingBtn.style.top = `${Math.round(top)}px`;
+              sendToAgentFloatingBtn.style.left = `${Math.round(left)}px`;
+              sendToAgentFloatingBtn.style.display = "inline-flex";
+            }
+          } catch (e) {
+            // selection range might have collapsed or moved
+          }
+        }
+      }
+
+      document.addEventListener("selectionchange", () => {
+        updateAgentChatSelection();
+      });
+
+      document.addEventListener("mouseup", () => {
+        setTimeout(updateAgentChatSelection, 10);
+      });
+
+      document.addEventListener("keyup", (e) => {
+        if (e.key === "Escape") {
+          hideAgentChatButtons();
+        } else {
+          setTimeout(updateAgentChatSelection, 10);
+        }
+      });
+
+      document.addEventListener("mousedown", (e) => {
+        if (
+          sendToAgentFloatingBtn && (sendToAgentFloatingBtn === e.target || sendToAgentFloatingBtn.contains(e.target)) ||
+          execSendAgentBtn && (execSendAgentBtn === e.target || execSendAgentBtn.contains(e.target)) ||
+          mainSendAgentBtn && (mainSendAgentBtn === e.target || mainSendAgentBtn.contains(e.target))
+        ) {
+          return;
+        }
+        const inConsole = isNodeInConsole(e.target);
+        if (!inConsole) {
+          hideAgentChatButtons();
+        }
+      });
+
+      if (execConsoleOut) {
+        execConsoleOut.addEventListener("scroll", () => {
+          if (selectedExecutionLogText) {
+            updateAgentChatSelection();
+          }
+        });
+      }
+
+      if (mainConsoleOut) {
+        mainConsoleOut.addEventListener("scroll", () => {
+          if (selectedExecutionLogText) {
+            updateAgentChatSelection();
+          }
+        });
+      }
+
+      if (sendToAgentFloatingBtn) {
+        sendToAgentFloatingBtn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        sendToAgentFloatingBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          triggerSendToAgent(selectedExecutionLogText);
+        });
+      }
+
+      if (execSendAgentBtn) {
+        execSendAgentBtn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        execSendAgentBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          triggerSendToAgent(selectedExecutionLogText);
+        });
+      }
+
+      if (mainSendAgentBtn) {
+        mainSendAgentBtn.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+        mainSendAgentBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          triggerSendToAgent(selectedExecutionLogText);
+        });
       }
 
       function addLiveStep(stepKey, keyword, text, status) {

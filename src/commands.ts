@@ -31,6 +31,7 @@ import { featureStepIndex } from "./language/featureStepIndex";
 import { revealLiveRunPanel, openMainScreenPanel } from "./ui/liveRunWebview";
 import { executeGenerateStepDefinition, GeneratedStepSnippet } from "./language/stepCodeActionProvider";
 import { behaveResultsManager } from "./run/behaveResultsManager";
+import { sendExecutionLogToAgentChat } from "./ui/agentChat";
 
 type RunScenarioArgs = {
   filePath: string;
@@ -406,6 +407,31 @@ export function registerCommands(context: vscode.ExtensionContext): void {
         name: "smartBehave.openMainScreen",
         fn: () => {
           openMainScreenPanel();
+        }
+      },
+      {
+        name: "smartBehave.sendToAgentChat",
+        fn: async (logText?: string) => {
+          let textToSend = typeof logText === "string" ? logText : "";
+          if (!textToSend) {
+            const editor = vscode.window.activeTextEditor;
+            if (editor && !editor.selection.isEmpty) {
+              textToSend = editor.document.getText(editor.selection);
+            }
+          }
+          if (!textToSend.trim()) {
+            void vscode.window.showWarningMessage(
+              "Please select a section of the execution log to send to Agent Chat."
+            );
+            return;
+          }
+          await sendExecutionLogToAgentChat(textToSend);
+        }
+      },
+      {
+        name: "behave.sendToAgentChat",
+        fn: async (logText?: string) => {
+          await vscode.commands.executeCommand("smartBehave.sendToAgentChat", logText);
         }
       },
       {

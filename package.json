@@ -397,6 +397,11 @@
         "title": "Smart Behave: Show Cucumber-Behave Panel"
       },
       {
+        "command": "smartBehave.sendToAgentChat",
+        "title": "Cucumber-Behave: Send Execution Log to Agent Chat",
+        "icon": "$(sparkle)"
+      },
+      {
         "command": "smartBehave.openMainScreen",
         "title": "Cucumber-Behave: Open Execution & Results on Main Screen",
         "icon": "$(screen-full)"

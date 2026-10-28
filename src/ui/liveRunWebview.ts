@@ -30,6 +30,7 @@ import {
 } from "../run/behaveHierarchyModel";
 import { runBehaveHierarchySelection } from "../run/behaveRunExecution";
 import { behaveResultsManager } from "../run/behaveResultsManager";
+import { sendExecutionLogToAgentChat } from "./agentChat";
 
 export const PRIMARY_LIVE_RUN_VIEW_TYPE = "smartBehave.liveRun";
 
@@ -902,5 +903,11 @@ async function handleLiveRunWebviewMessage(
       return;
     }
     await handleOpenFileFromWebview(fsPath, lineRaw);
+    return;
+  }
+
+  if (msg.type === "sendToAgentChat") {
+    await sendExecutionLogToAgentChat(msg.text);
+    return;
   }
 }
