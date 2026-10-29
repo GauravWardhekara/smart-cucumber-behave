@@ -133,6 +133,64 @@ assert(matches[0].filePath === exampleStepPath, "Matched definition file matches
 const tokens = computeFeatureSemanticTokenSpans(featureContent);
 assert(tokens.length > 0, `Generated semantic tokens (count: ${tokens.length})`);
 
+// Verify distinct semantic tokens for all keywords and decorators
+const richSnippet = [
+  "@smoke @regression",
+  "Feature: Login Auth",
+  "  Background: Preconditions",
+  "    Given user is on landing page",
+  "  Rule: Business logic",
+  "    @critical",
+  "    Scenario: Successful signin",
+  "      When credentials are valid",
+  "      Then user lands on dashboard",
+  "      And user status is active",
+  "      But notification alert is silent",
+  "  Scenario Outline: Multi-user signin",
+  "    When credentials match <username>",
+  "    Examples:",
+  "      | username |",
+  "      | alice |"
+].join("\n");
+const richSpans = computeFeatureSemanticTokenSpans(richSnippet);
+assert(richSpans.some(s => s.kind === "tag"), "Semantic tokens identify @tag decorators");
+assert(richSpans.some(s => s.kind === "featureKeyword"), "Semantic tokens identify Feature keyword");
+assert(richSpans.some(s => s.kind === "backgroundKeyword"), "Semantic tokens identify Background keyword");
+assert(richSpans.some(s => s.kind === "scenarioKeyword"), "Semantic tokens identify Scenario keyword");
+assert(richSpans.some(s => s.kind === "ruleKeyword"), "Semantic tokens identify Rule keyword");
+assert(richSpans.some(s => s.kind === "givenKeyword"), "Semantic tokens identify Given step keyword");
+assert(richSpans.some(s => s.kind === "whenKeyword"), "Semantic tokens identify When step keyword");
+assert(richSpans.some(s => s.kind === "thenKeyword"), "Semantic tokens identify Then step keyword");
+assert(richSpans.some(s => s.kind === "andKeyword"), "Semantic tokens identify And step keyword");
+assert(richSpans.some(s => s.kind === "butKeyword"), "Semantic tokens identify But step keyword");
+assert(richSpans.some(s => s.kind === "examplesKeyword"), "Semantic tokens identify Examples keyword");
+assert(richSpans.some(s => s.kind === "placeholder"), "Semantic tokens identify <placeholder>");
+
+// Verify package.json contributes distinct semantic token types and colors
+const pkgJson = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
+const semTokenTypes = pkgJson.contributes.semanticTokenTypes.map((t: any) => t.id);
+assert(semTokenTypes.includes("behaveFeatureKeyword"), "SemanticTokenTypes contributes behaveFeatureKeyword");
+assert(semTokenTypes.includes("behaveScenarioKeyword"), "SemanticTokenTypes contributes behaveScenarioKeyword");
+assert(semTokenTypes.includes("behaveBackgroundKeyword"), "SemanticTokenTypes contributes behaveBackgroundKeyword");
+assert(semTokenTypes.includes("behaveExamplesKeyword"), "SemanticTokenTypes contributes behaveExamplesKeyword");
+assert(semTokenTypes.includes("behaveRuleKeyword"), "SemanticTokenTypes contributes behaveRuleKeyword");
+assert(semTokenTypes.includes("behaveGivenKeyword"), "SemanticTokenTypes contributes behaveGivenKeyword");
+assert(semTokenTypes.includes("behaveWhenKeyword"), "SemanticTokenTypes contributes behaveWhenKeyword");
+assert(semTokenTypes.includes("behaveThenKeyword"), "SemanticTokenTypes contributes behaveThenKeyword");
+assert(semTokenTypes.includes("behaveAndKeyword"), "SemanticTokenTypes contributes behaveAndKeyword");
+assert(semTokenTypes.includes("behaveButKeyword"), "SemanticTokenTypes contributes behaveButKeyword");
+assert(semTokenTypes.includes("behaveStarKeyword"), "SemanticTokenTypes contributes behaveStarKeyword");
+assert(semTokenTypes.includes("behaveTag"), "SemanticTokenTypes contributes behaveTag");
+
+const colorCustomizations = pkgJson.contributes.configurationDefaults["editor.semanticTokenColorCustomizations"];
+assert(colorCustomizations.rules.behaveGivenKeyword !== colorCustomizations.rules.behaveWhenKeyword, "Given and When keywords have distinct colors");
+assert(colorCustomizations.rules.behaveWhenKeyword !== colorCustomizations.rules.behaveThenKeyword, "When and Then keywords have distinct colors");
+assert(colorCustomizations.rules.behaveThenKeyword !== colorCustomizations.rules.behaveAndKeyword, "Then and And keywords have distinct colors");
+assert(colorCustomizations.rules.behaveAndKeyword !== colorCustomizations.rules.behaveButKeyword, "And and But keywords have distinct colors");
+assert(colorCustomizations.rules.behaveTag, "Tag decorators have distinct color configuration");
+assert(colorCustomizations["[*Dark*]"].rules.behaveGivenKeyword, "Dark mode color rules defined for Given keyword");
+assert(colorCustomizations["[*Light*]"].rules.behaveGivenKeyword, "Light mode color rules defined for Given keyword");
+
 // 5. Verify document formatting
 const lines = featureContent.split(/\r?\n/);
 const edits = computeFeatureFormatLineEdits(lines, 0, lines.length - 1, {

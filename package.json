@@ -178,12 +178,67 @@
       {
         "id": "behaveStructuralKeyword",
         "superType": "keyword",
-        "description": "Feature:, Scenario:, Background:, Examples:, Rule:, …"
+        "description": "General structural keywords in .feature files"
+      },
+      {
+        "id": "behaveFeatureKeyword",
+        "superType": "keyword",
+        "description": "Feature: header keyword"
+      },
+      {
+        "id": "behaveScenarioKeyword",
+        "superType": "keyword",
+        "description": "Scenario:, Scenario Outline:, Scenario Template: keywords"
+      },
+      {
+        "id": "behaveBackgroundKeyword",
+        "superType": "keyword",
+        "description": "Background: header keyword"
+      },
+      {
+        "id": "behaveExamplesKeyword",
+        "superType": "keyword",
+        "description": "Examples:, Scenarios: keywords"
+      },
+      {
+        "id": "behaveRuleKeyword",
+        "superType": "keyword",
+        "description": "Rule: header keyword"
       },
       {
         "id": "behaveStepKeyword",
         "superType": "keyword",
-        "description": "Given, When, Then, And, But, *"
+        "description": "General step keywords"
+      },
+      {
+        "id": "behaveGivenKeyword",
+        "superType": "keyword",
+        "description": "Given step keyword"
+      },
+      {
+        "id": "behaveWhenKeyword",
+        "superType": "keyword",
+        "description": "When step keyword"
+      },
+      {
+        "id": "behaveThenKeyword",
+        "superType": "keyword",
+        "description": "Then step keyword"
+      },
+      {
+        "id": "behaveAndKeyword",
+        "superType": "keyword",
+        "description": "And step keyword"
+      },
+      {
+        "id": "behaveButKeyword",
+        "superType": "keyword",
+        "description": "But step keyword"
+      },
+      {
+        "id": "behaveStarKeyword",
+        "superType": "keyword",
+        "description": "* (wildcard) step keyword"
       },
       {
         "id": "behaveTitle",
@@ -213,7 +268,7 @@
       {
         "id": "behaveTag",
         "superType": "namespace",
-        "description": "Tags (@tag)"
+        "description": "Tags and decorators (@tag)"
       }
     ],
     "semanticTokenScopes": [
@@ -228,9 +283,53 @@
             "keyword.control",
             "keyword.other"
           ],
+          "behaveFeatureKeyword": [
+            "keyword.control.cucumber.feature",
+            "keyword.control"
+          ],
+          "behaveScenarioKeyword": [
+            "keyword.control.cucumber.scenario",
+            "keyword.control"
+          ],
+          "behaveBackgroundKeyword": [
+            "keyword.control.cucumber.background",
+            "keyword.control"
+          ],
+          "behaveExamplesKeyword": [
+            "keyword.control.cucumber.examples",
+            "keyword.control"
+          ],
+          "behaveRuleKeyword": [
+            "keyword.control.cucumber.rule",
+            "keyword.control"
+          ],
           "behaveStepKeyword": [
             "entity.name.function",
             "keyword.other"
+          ],
+          "behaveGivenKeyword": [
+            "keyword.other.cucumber.given",
+            "entity.name.function"
+          ],
+          "behaveWhenKeyword": [
+            "keyword.other.cucumber.when",
+            "variable.language"
+          ],
+          "behaveThenKeyword": [
+            "keyword.other.cucumber.then",
+            "support.function"
+          ],
+          "behaveAndKeyword": [
+            "keyword.other.cucumber.and",
+            "constant.language"
+          ],
+          "behaveButKeyword": [
+            "keyword.other.cucumber.but",
+            "keyword.operator"
+          ],
+          "behaveStarKeyword": [
+            "keyword.other.cucumber.star",
+            "keyword.operator"
           ],
           "behaveTitle": [
             "entity.name.type.class",
@@ -254,7 +353,8 @@
           ],
           "behaveTag": [
             "entity.name.tag",
-            "support.variable.annotation"
+            "support.variable.annotation",
+            "storage.type.annotation"
           ]
         }
       },
@@ -269,9 +369,53 @@
             "keyword.control",
             "keyword.other"
           ],
+          "behaveFeatureKeyword": [
+            "keyword.control.cucumber.feature",
+            "keyword.control"
+          ],
+          "behaveScenarioKeyword": [
+            "keyword.control.cucumber.scenario",
+            "keyword.control"
+          ],
+          "behaveBackgroundKeyword": [
+            "keyword.control.cucumber.background",
+            "keyword.control"
+          ],
+          "behaveExamplesKeyword": [
+            "keyword.control.cucumber.examples",
+            "keyword.control"
+          ],
+          "behaveRuleKeyword": [
+            "keyword.control.cucumber.rule",
+            "keyword.control"
+          ],
           "behaveStepKeyword": [
             "entity.name.function",
             "keyword.other"
+          ],
+          "behaveGivenKeyword": [
+            "keyword.other.cucumber.given",
+            "entity.name.function"
+          ],
+          "behaveWhenKeyword": [
+            "keyword.other.cucumber.when",
+            "variable.language"
+          ],
+          "behaveThenKeyword": [
+            "keyword.other.cucumber.then",
+            "support.function"
+          ],
+          "behaveAndKeyword": [
+            "keyword.other.cucumber.and",
+            "constant.language"
+          ],
+          "behaveButKeyword": [
+            "keyword.other.cucumber.but",
+            "keyword.operator"
+          ],
+          "behaveStarKeyword": [
+            "keyword.other.cucumber.star",
+            "keyword.operator"
           ],
           "behaveTitle": [
             "entity.name.type.class",
@@ -295,7 +439,8 @@
           ],
           "behaveTag": [
             "entity.name.tag",
-            "support.variable.annotation"
+            "support.variable.annotation",
+            "storage.type.annotation"
           ]
         }
       },
@@ -310,9 +455,53 @@
             "keyword.control",
             "keyword.other"
           ],
+          "behaveFeatureKeyword": [
+            "keyword.control.cucumber.feature",
+            "keyword.control"
+          ],
+          "behaveScenarioKeyword": [
+            "keyword.control.cucumber.scenario",
+            "keyword.control"
+          ],
+          "behaveBackgroundKeyword": [
+            "keyword.control.cucumber.background",
+            "keyword.control"
+          ],
+          "behaveExamplesKeyword": [
+            "keyword.control.cucumber.examples",
+            "keyword.control"
+          ],
+          "behaveRuleKeyword": [
+            "keyword.control.cucumber.rule",
+            "keyword.control"
+          ],
           "behaveStepKeyword": [
             "entity.name.function",
             "keyword.other"
+          ],
+          "behaveGivenKeyword": [
+            "keyword.other.cucumber.given",
+            "entity.name.function"
+          ],
+          "behaveWhenKeyword": [
+            "keyword.other.cucumber.when",
+            "variable.language"
+          ],
+          "behaveThenKeyword": [
+            "keyword.other.cucumber.then",
+            "support.function"
+          ],
+          "behaveAndKeyword": [
+            "keyword.other.cucumber.and",
+            "constant.language"
+          ],
+          "behaveButKeyword": [
+            "keyword.other.cucumber.but",
+            "keyword.operator"
+          ],
+          "behaveStarKeyword": [
+            "keyword.other.cucumber.star",
+            "keyword.operator"
           ],
           "behaveTitle": [
             "entity.name.type.class",
@@ -336,7 +525,8 @@
           ],
           "behaveTag": [
             "entity.name.tag",
-            "support.variable.annotation"
+            "support.variable.annotation",
+            "storage.type.annotation"
           ]
         }
       },
@@ -351,9 +541,53 @@
             "keyword.control",
             "keyword.other"
           ],
+          "behaveFeatureKeyword": [
+            "keyword.control.cucumber.feature",
+            "keyword.control"
+          ],
+          "behaveScenarioKeyword": [
+            "keyword.control.cucumber.scenario",
+            "keyword.control"
+          ],
+          "behaveBackgroundKeyword": [
+            "keyword.control.cucumber.background",
+            "keyword.control"
+          ],
+          "behaveExamplesKeyword": [
+            "keyword.control.cucumber.examples",
+            "keyword.control"
+          ],
+          "behaveRuleKeyword": [
+            "keyword.control.cucumber.rule",
+            "keyword.control"
+          ],
           "behaveStepKeyword": [
             "entity.name.function",
             "keyword.other"
+          ],
+          "behaveGivenKeyword": [
+            "keyword.other.cucumber.given",
+            "entity.name.function"
+          ],
+          "behaveWhenKeyword": [
+            "keyword.other.cucumber.when",
+            "variable.language"
+          ],
+          "behaveThenKeyword": [
+            "keyword.other.cucumber.then",
+            "support.function"
+          ],
+          "behaveAndKeyword": [
+            "keyword.other.cucumber.and",
+            "constant.language"
+          ],
+          "behaveButKeyword": [
+            "keyword.other.cucumber.but",
+            "keyword.operator"
+          ],
+          "behaveStarKeyword": [
+            "keyword.other.cucumber.star",
+            "keyword.operator"
           ],
           "behaveTitle": [
             "entity.name.type.class",
@@ -377,7 +611,8 @@
           ],
           "behaveTag": [
             "entity.name.tag",
-            "support.variable.annotation"
+            "support.variable.annotation",
+            "storage.type.annotation"
           ]
         }
       }
@@ -404,25 +639,140 @@
       },
       "editor.semanticTokenColorCustomizations": {
         "rules": {
-          "behaveTag:cucumber": "#FFA500",
-          "behavePlaceholder:cucumber": "#FF8DC7",
-          "behaveTag:behave": "#FFA500",
-          "behavePlaceholder:behave": "#FF8DC7",
-          "behaveTag:gherkin": "#FFA500",
-          "behavePlaceholder:gherkin": "#FF8DC7"
+          "behaveFeatureKeyword": "#FFB86C",
+          "behaveScenarioKeyword": "#D2A8FF",
+          "behaveBackgroundKeyword": "#70E1E8",
+          "behaveExamplesKeyword": "#F1FA8C",
+          "behaveRuleKeyword": "#8BE9FD",
+          "behaveGivenKeyword": "#7EE787",
+          "behaveWhenKeyword": "#FFA657",
+          "behaveThenKeyword": "#79C0FF",
+          "behaveAndKeyword": "#D2A8FF",
+          "behaveButKeyword": "#FF7B72",
+          "behaveStarKeyword": "#A5D6FF",
+          "behaveTag": "#FFA500",
+          "behavePlaceholder": "#FF8DC7"
         },
         "[*Dark*]": {
           "rules": {
+            "behaveFeatureKeyword": {
+              "foreground": "#FFB86C",
+              "bold": true
+            },
+            "behaveScenarioKeyword": {
+              "foreground": "#D2A8FF",
+              "bold": true
+            },
+            "behaveBackgroundKeyword": {
+              "foreground": "#70E1E8",
+              "bold": true
+            },
+            "behaveExamplesKeyword": {
+              "foreground": "#F1FA8C",
+              "bold": true
+            },
+            "behaveRuleKeyword": {
+              "foreground": "#8BE9FD",
+              "bold": true
+            },
+            "behaveGivenKeyword": {
+              "foreground": "#7EE787",
+              "bold": true
+            },
+            "behaveWhenKeyword": {
+              "foreground": "#FFA657",
+              "bold": true
+            },
+            "behaveThenKeyword": {
+              "foreground": "#79C0FF",
+              "bold": true
+            },
+            "behaveAndKeyword": {
+              "foreground": "#D2A8FF",
+              "bold": true
+            },
+            "behaveButKeyword": {
+              "foreground": "#FF7B72",
+              "bold": true
+            },
+            "behaveStarKeyword": {
+              "foreground": "#A5D6FF",
+              "bold": true
+            },
+            "behaveTag": {
+              "foreground": "#FFA500",
+              "bold": false
+            },
+            "behavePlaceholder": {
+              "foreground": "#FF8DC7",
+              "italic": true
+            },
+            "behaveStepText": "#FFFFFF",
             "behaveStepText:cucumber": "#FFFFFF",
             "behaveStepText:behave": "#FFFFFF",
-            "behaveStepText:gherkin": "#FFFFFF"
+            "behaveStepText:gherkin": "#FFFFFF",
+            "behaveStepText:feature": "#FFFFFF"
           }
         },
         "[*Light*]": {
           "rules": {
+            "behaveFeatureKeyword": {
+              "foreground": "#9A6700",
+              "bold": true
+            },
+            "behaveScenarioKeyword": {
+              "foreground": "#6639BA",
+              "bold": true
+            },
+            "behaveBackgroundKeyword": {
+              "foreground": "#0598AB",
+              "bold": true
+            },
+            "behaveExamplesKeyword": {
+              "foreground": "#947600",
+              "bold": true
+            },
+            "behaveRuleKeyword": {
+              "foreground": "#218BFF",
+              "bold": true
+            },
+            "behaveGivenKeyword": {
+              "foreground": "#1A7F37",
+              "bold": true
+            },
+            "behaveWhenKeyword": {
+              "foreground": "#BF5700",
+              "bold": true
+            },
+            "behaveThenKeyword": {
+              "foreground": "#0969DA",
+              "bold": true
+            },
+            "behaveAndKeyword": {
+              "foreground": "#8250DF",
+              "bold": true
+            },
+            "behaveButKeyword": {
+              "foreground": "#CF222E",
+              "bold": true
+            },
+            "behaveStarKeyword": {
+              "foreground": "#57606A",
+              "bold": true
+            },
+            "behaveTag": {
+              "foreground": "#C85A00",
+              "bold": false
+            },
+            "behavePlaceholder": {
+              "foreground": "#BF3989",
+              "italic": true
+            },
+            "behaveStepText": "#1a1a1a",
             "behaveStepText:cucumber": "#1a1a1a",
             "behaveStepText:behave": "#1a1a1a",
-            "behaveStepText:gherkin": "#1a1a1a"
+            "behaveStepText:gherkin": "#1a1a1a",
+            "behaveStepText:feature": "#1a1a1a"
           }
         }
       }
