@@ -1,0 +1,31 @@
+{
+  "iconDefinitions": {
+    "_gherkin_light": {
+      "iconPath": "../media/gherkin-light.svg"
+    },
+    "_gherkin_dark": {
+      "iconPath": "../media/gherkin-dark.svg"
+    }
+  },
+  "fileExtensions": {
+    "feature": "_gherkin_dark"
+  },
+  "languageIds": {
+    "gherkin": "_gherkin_dark",
+    "cucumber": "_gherkin_dark",
+    "behave": "_gherkin_dark",
+    "feature": "_gherkin_dark"
+  },
+  "light": {
+    "fileExtensions": {
+      "feature": "_gherkin_light"
+    },
+    "languageIds": {
+      "gherkin": "_gherkin_light",
+      "cucumber": "_gherkin_light",
+      "behave": "_gherkin_light",
+      "feature": "_gherkin_light"
+    }
+  }
+}
+

@@ -3,7 +3,7 @@
   "publisher": "GauravWardhekar",
   "description": "Comprehensive Cucumber & Behave support for VS Code: Official Cucumber Language Server (multilingual step definitions, autocomplete, diagnostics, formatting) + Smart Behave Runner (Test Explorer, Live Run panel, CodeLens, Interactive Configuration).",
   "displayName": "Smart Cucumber-Behave",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "license": "MIT",
   "author": "Gaurav Wardhekar <gauravwardhekar@gmail.com>",
   "contributors": [
@@ -48,6 +48,24 @@
   "main": "./out/bundle.js",
   "contributes": {
     "languages": [
+      {
+        "id": "gherkin",
+        "aliases": [
+          "Gherkin",
+          "gherkin"
+        ],
+        "extensions": [
+          ".feature"
+        ],
+        "mimetypes": [
+          "text/x-gherkin"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./media/gherkin-light.svg",
+          "dark": "./media/gherkin-dark.svg"
+        }
+      },
       {
         "id": "cucumber",
         "aliases": [
@@ -101,24 +119,6 @@
         "mimetypes": [
           "text/x-gherkin",
           "text/x-feature"
-        ],
-        "configuration": "./language-configuration.json",
-        "icon": {
-          "light": "./media/gherkin-light.svg",
-          "dark": "./media/gherkin-dark.svg"
-        }
-      },
-      {
-        "id": "gherkin",
-        "aliases": [
-          "Gherkin",
-          "gherkin"
-        ],
-        "extensions": [
-          ".feature"
-        ],
-        "mimetypes": [
-          "text/x-gherkin"
         ],
         "configuration": "./language-configuration.json",
         "icon": {
@@ -294,11 +294,93 @@
             "support.variable.annotation"
           ]
         }
+      },
+      {
+        "language": "gherkin",
+        "scopes": {
+          "behaveComment": [
+            "comment.line.number-sign",
+            "comment.line"
+          ],
+          "behaveStructuralKeyword": [
+            "keyword.control",
+            "keyword.other"
+          ],
+          "behaveStepKeyword": [
+            "entity.name.function",
+            "keyword.other"
+          ],
+          "behaveTitle": [
+            "entity.name.type.class",
+            "entity.name"
+          ],
+          "behaveStepText": [
+            "string.unquoted",
+            "markup.inserted"
+          ],
+          "behaveDocstring": [
+            "string.quoted.docstring",
+            "string.quoted"
+          ],
+          "behaveTable": [
+            "string.other",
+            "markup.inline.raw"
+          ],
+          "behavePlaceholder": [
+            "constant.character.format.placeholder",
+            "variable.other"
+          ],
+          "behaveTag": [
+            "entity.name.tag",
+            "support.variable.annotation"
+          ]
+        }
+      },
+      {
+        "language": "feature",
+        "scopes": {
+          "behaveComment": [
+            "comment.line.number-sign",
+            "comment.line"
+          ],
+          "behaveStructuralKeyword": [
+            "keyword.control",
+            "keyword.other"
+          ],
+          "behaveStepKeyword": [
+            "entity.name.function",
+            "keyword.other"
+          ],
+          "behaveTitle": [
+            "entity.name.type.class",
+            "entity.name"
+          ],
+          "behaveStepText": [
+            "string.unquoted",
+            "markup.inserted"
+          ],
+          "behaveDocstring": [
+            "string.quoted.docstring",
+            "string.quoted"
+          ],
+          "behaveTable": [
+            "string.other",
+            "markup.inline.raw"
+          ],
+          "behavePlaceholder": [
+            "constant.character.format.placeholder",
+            "variable.other"
+          ],
+          "behaveTag": [
+            "entity.name.tag",
+            "support.variable.annotation"
+          ]
+        }
       }
     ],
     "configurationDefaults": {
       "files.associations": {
-        "*.feature": "cucumber"
+        "*.feature": "gherkin"
       },
       "[cucumber]": {
         "editor.semanticHighlighting.enabled": true
@@ -317,18 +399,22 @@
           "behaveTag:cucumber": "#FFA500",
           "behavePlaceholder:cucumber": "#FF8DC7",
           "behaveTag:behave": "#FFA500",
-          "behavePlaceholder:behave": "#FF8DC7"
+          "behavePlaceholder:behave": "#FF8DC7",
+          "behaveTag:gherkin": "#FFA500",
+          "behavePlaceholder:gherkin": "#FF8DC7"
         },
         "[*Dark*]": {
           "rules": {
             "behaveStepText:cucumber": "#FFFFFF",
-            "behaveStepText:behave": "#FFFFFF"
+            "behaveStepText:behave": "#FFFFFF",
+            "behaveStepText:gherkin": "#FFFFFF"
           }
         },
         "[*Light*]": {
           "rules": {
             "behaveStepText:cucumber": "#1a1a1a",
-            "behaveStepText:behave": "#1a1a1a"
+            "behaveStepText:behave": "#1a1a1a",
+            "behaveStepText:gherkin": "#1a1a1a"
           }
         }
       }
@@ -863,6 +949,13 @@
             "description": "If true, And/But steps are indented relative to the preceding step (+1 tab); if false, uses explicit and/but tab levels"
           }
         }
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "smart-cucumber-behave-icons",
+        "label": "Cucumber & Behave Icons",
+        "path": "./icons/icon-theme.json"
       }
     ]
   },

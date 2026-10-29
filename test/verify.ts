@@ -309,7 +309,7 @@ const expectedWasms = [
   "tree-sitter.wasm",
   "tsx.wasm"
 ];
-if (!fs.existsSync(wasmDir) || !expectedWasms.every((w) => fs.existsSync(path.join(wasmDir, w)))) {
+if (!fs.existsSync(wasmDir) || !expectedWasms.every((w: string) => fs.existsSync(path.join(wasmDir, w)))) {
   const copyScript = path.resolve(__dirname, "../scripts/copy-wasms.js");
   if (fs.existsSync(copyScript)) {
     require(copyScript);
@@ -609,7 +609,7 @@ Feature: Maximo REST API Verification
   // 21. Verify Cucumber-Behave Tab in Activity Bar & 3-Tab Architecture & Allure Reports
   console.log("\n--- Verifying Activity Bar Placement, 3-Tab Layout & Allure Reports ---");
   const pkgContent = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
-  assert(pkgContent.version === "1.1.1", `package.json version is 1.1.1 (actual: ${pkgContent.version})`);
+  assert(pkgContent.version === "1.1.2", `package.json version is 1.1.2 (actual: ${pkgContent.version})`);
   assert(pkgContent.bugs?.url === "https://github.com/GauravWardhekara/smart-cucumber-behave/issues", "package.json has issue reporting url");
   assert(pkgContent.contributes.viewsContainers?.activitybar?.length > 0, "contributes.viewsContainers.activitybar exists");
   assert(
@@ -773,16 +773,16 @@ Feature: Maximo REST API Verification
 
   // Verify instance isolation: Each test record only contains its own execution artifacts
   const currentRecords = behaveResultsManager.getRecords();
-  const paymentRecord = currentRecords.find((r) => r.scenarioName === "Payment card fails");
-  const loginRecord = currentRecords.find((r) => r.scenarioName === "User login fails");
+  const paymentRecord = currentRecords.find((r: any) => r.scenarioName === "Payment card fails");
+  const loginRecord = currentRecords.find((r: any) => r.scenarioName === "User login fails");
   assert(paymentRecord && paymentRecord.artifacts && paymentRecord.artifacts.length > 0, "Payment record has artifacts");
   assert(loginRecord && loginRecord.artifacts && loginRecord.artifacts.length > 0, "Login record has artifacts");
   assert(
-    !paymentRecord.artifacts.some((a) => a.name.includes("User_login_fails")),
+    !paymentRecord.artifacts.some((a: any) => a.name.includes("User_login_fails")),
     "Payment record does NOT leak User login artifacts"
   );
   assert(
-    !loginRecord.artifacts.some((a) => a.name.includes("Payment_card_fails")),
+    !loginRecord.artifacts.some((a: any) => a.name.includes("Payment_card_fails")),
     "Login record does NOT leak Payment card artifacts"
   );
 
@@ -809,9 +809,9 @@ Feature: Maximo REST API Verification
   // Verify detectConfigFiles finds all config files in workspace
   const detectedCaps = detectConfigFiles(path.resolve(__dirname, ".."));
   assert(detectedCaps.length >= 3, `detectConfigFiles found at least 3 caps files (actual: ${detectedCaps.length})`);
-  assert(detectedCaps.some((f) => f.includes("android_caps_v1.json")), "android_caps_v1.json detected");
-  assert(detectedCaps.some((f) => f.includes("ios_caps_v5.json")), "ios_caps_v5.json detected");
-  assert(detectedCaps.some((f) => f.includes("config.properties")), "config.properties detected");
+  assert(detectedCaps.some((f: string) => f.includes("android_caps_v1.json")), "android_caps_v1.json detected");
+  assert(detectedCaps.some((f: string) => f.includes("ios_caps_v5.json")), "ios_caps_v5.json detected");
+  assert(detectedCaps.some((f: string) => f.includes("config.properties")), "config.properties detected");
 
   // Verify command registration in package.json
   const hasMainScreenCmd = pkgContent.contributes.commands.some(
@@ -898,6 +898,19 @@ Feature: Maximo REST API Verification
   assert(panelHtmlContent.includes('type: "sendToAgentChat"'), "Execution log screen sends sendToAgentChat message on click");
 
   console.log("ALL SEND TO AGENT CHAT VERIFICATION CHECKS PASSED!");
+  // 24. Verify File Association & Icon Contribution for Agent Context
+  console.log("\n--- Verifying File Association & Icon Contribution for Agent Context ---");
+  assert(pkgContent.contributes.configurationDefaults["files.associations"]["*.feature"] === "gherkin", "files.associations associates *.feature with gherkin");
+  assert(pkgContent.contributes.languages[0].id === "gherkin", "Primary contributes.languages entry is gherkin");
+  assert(pkgContent.contributes.iconThemes?.length > 0, "contributes.iconThemes exists");
+  assert(pkgContent.contributes.iconThemes[0].id === "smart-cucumber-behave-icons", "Contributes smart-cucumber-behave-icons iconTheme");
+  const iconThemePath = path.resolve(__dirname, "../icons/icon-theme.json");
+  assert(fs.existsSync(iconThemePath), "icons/icon-theme.json exists");
+  const iconThemeData = JSON.parse(fs.readFileSync(iconThemePath, "utf-8"));
+  assert(iconThemeData.fileExtensions?.feature, "iconTheme maps feature extension to icon");
+  assert(iconThemeData.languageIds?.gherkin, "iconTheme maps gherkin languageId to icon");
+  console.log("ALL FILE ASSOCIATION & AGENT CONTEXT ICON CHECKS PASSED!");
+
 
   console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");
   console.log("ALL ACTIVITY BAR, 3-TAB & ALLURE VERIFICATION CHECKS PASSED!");
