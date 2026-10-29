@@ -18,8 +18,19 @@ export type FeatureSemanticTokenKind =
   | "comment"
   | "tag"
   | "structuralKeyword"
+  | "featureKeyword"
+  | "scenarioKeyword"
+  | "backgroundKeyword"
+  | "examplesKeyword"
+  | "ruleKeyword"
   | "title"
   | "stepKeyword"
+  | "givenKeyword"
+  | "whenKeyword"
+  | "thenKeyword"
+  | "andKeyword"
+  | "butKeyword"
+  | "starKeyword"
   | "stepText"
   | "docstring"
   | "table"
@@ -56,7 +67,8 @@ function pushKeywordTitle(
   lineIndex: number,
   keyword: string,
   titlePart: string,
-  out: FeatureSemanticTokenSpan[]
+  out: FeatureSemanticTokenSpan[],
+  keywordKind: FeatureSemanticTokenKind = "structuralKeyword"
 ): void {
   const kwStart = line.indexOf(keyword);
   if (kwStart >= 0) {
@@ -64,7 +76,7 @@ function pushKeywordTitle(
       line: lineIndex,
       start: kwStart,
       length: keyword.length,
-      kind: "structuralKeyword",
+      kind: keywordKind,
     });
   }
   const trimmedTitle = titlePart.trim();
@@ -217,11 +229,27 @@ function processStepLine(
 
   const kw = kwMatch[1];
   const kwStart = kwMatch.index + kwMatch[0].indexOf(kw);
+  let stepKind: FeatureSemanticTokenKind = "stepKeyword";
+  const kwUpper = kw.toUpperCase();
+  if (kwUpper === "GIVEN") {
+    stepKind = "givenKeyword";
+  } else if (kwUpper === "WHEN") {
+    stepKind = "whenKeyword";
+  } else if (kwUpper === "THEN") {
+    stepKind = "thenKeyword";
+  } else if (kwUpper === "AND") {
+    stepKind = "andKeyword";
+  } else if (kwUpper === "BUT") {
+    stepKind = "butKeyword";
+  } else if (kw === "*") {
+    stepKind = "starKeyword";
+  }
+
   semanticOut.push({
     line: lineIndex,
     start: kwStart,
     length: kw.length,
-    kind: "stepKeyword",
+    kind: stepKind,
   });
 
   const afterKw = kwMatch.index + kwMatch[0].length;
@@ -422,7 +450,7 @@ export function analyzeFeatureDocument(
       }
       const fm = line.match(FEATURE_RE);
       if (fm) {
-        pushKeywordTitle(line, lineIndex, "Feature:", fm[1].trim(), out);
+        pushKeywordTitle(line, lineIndex, "Feature:", fm[1].trim(), out, "featureKeyword");
         inFeature = true;
         collectingBackground = false;
         hadScenarioOrOutline = false;
@@ -451,14 +479,14 @@ export function analyzeFeatureDocument(
       inExamplesTable = false;
       const rm = line.match(RULE_RE);
       if (rm) {
-        pushKeywordTitle(line, lineIndex, "Rule:", rm[1].trim(), out);
+        pushKeywordTitle(line, lineIndex, "Rule:", rm[1].trim(), out, "ruleKeyword");
       }
       continue;
     }
 
     const fm = line.match(FEATURE_RE);
     if (fm) {
-      pushKeywordTitle(line, lineIndex, "Feature:", fm[1].trim(), out);
+      pushKeywordTitle(line, lineIndex, "Feature:", fm[1].trim(), out, "featureKeyword");
       collectingBackground = false;
       hadScenarioOrOutline = false;
       flushScenarioKeywords();
@@ -472,7 +500,7 @@ export function analyzeFeatureDocument(
       flushScenarioKeywords();
       collectingBackground = true;
       inExamplesTable = false;
-      pushKeywordTitle(line, lineIndex, "Background:", bgMatch[1].trim(), out);
+      pushKeywordTitle(line, lineIndex, "Background:", bgMatch[1].trim(), out, "backgroundKeyword");
       continue;
     }
 
@@ -482,7 +510,7 @@ export function analyzeFeatureDocument(
       hadScenarioOrOutline = true;
       flushScenarioKeywords();
       inExamplesTable = false;
-      pushKeywordTitle(line, lineIndex, "Scenario Outline:", outlineMatch[1].trim(), out);
+      pushKeywordTitle(line, lineIndex, "Scenario Outline:", outlineMatch[1].trim(), out, "scenarioKeyword");
       continue;
     }
 
@@ -492,7 +520,7 @@ export function analyzeFeatureDocument(
       hadScenarioOrOutline = true;
       flushScenarioKeywords();
       inExamplesTable = false;
-      pushKeywordTitle(line, lineIndex, "Scenario:", scenarioMatch[1].trim(), out);
+      pushKeywordTitle(line, lineIndex, "Scenario:", scenarioMatch[1].trim(), out, "scenarioKeyword");
       continue;
     }
 
@@ -500,7 +528,7 @@ export function analyzeFeatureDocument(
     if (examplesMatch) {
       inExamplesTable = true;
       flushScenarioKeywords();
-      pushKeywordTitle(line, lineIndex, "Examples:", examplesMatch[1].trim(), out);
+      pushKeywordTitle(line, lineIndex, "Examples:", examplesMatch[1].trim(), out, "examplesKeyword");
       continue;
     }
 

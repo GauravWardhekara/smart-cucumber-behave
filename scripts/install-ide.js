@@ -43,3 +43,37 @@ for (const vsix of vsixFiles) {
     }
   }
 }
+
+// Ensure Antigravity IDE's built-in symbol icon theme maps .feature files to the cucumber icon
+try {
+  const symbolThemePaths = [
+    path.join(localAppData, 'Programs', 'Antigravity IDE', 'resources', 'app', 'extensions', 'theme-symbols', 'src', 'symbol-icon-theme.json'),
+  ];
+  for (const stPath of symbolThemePaths) {
+    if (fs.existsSync(stPath)) {
+      const content = fs.readFileSync(stPath, 'utf8');
+      const json = JSON.parse(content);
+      let changed = false;
+      if (!json.fileExtensions) json.fileExtensions = {};
+      for (const ext of ['feature', 'features', 'story']) {
+        if (json.fileExtensions[ext] !== 'cucumber') {
+          json.fileExtensions[ext] = 'cucumber';
+          changed = true;
+        }
+      }
+      if (!json.languageIds) json.languageIds = {};
+      for (const lang of ['gherkin', 'cucumber', 'behave', 'feature']) {
+        if (json.languageIds[lang] !== 'cucumber') {
+          json.languageIds[lang] = 'cucumber';
+          changed = true;
+        }
+      }
+      if (changed) {
+        fs.writeFileSync(stPath, JSON.stringify(json, null, 2), 'utf8');
+        console.log(`✓ Patched ${stPath} with Cucumber icon mappings for Agent context.\n`);
+      }
+    }
+  }
+} catch (e) {
+  console.warn('Could not patch Antigravity IDE symbol icon theme:', e.message);
+}

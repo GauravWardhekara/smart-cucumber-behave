@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 import { registerBehaveCodeLens } from "./codeLens";
 import { registerCommands } from "./commands";
 import { LOG } from "./log";
@@ -39,6 +41,46 @@ import {
   deactivateCucumberLanguageServer,
 } from "./cucumberLanguageServer";
 
+function ensureAntigravityIdeSymbolIconTheme(): void {
+  try {
+    const appRoot = vscode.env.appRoot;
+    if (!appRoot) {
+      return;
+    }
+    const themeJsonPath = path.join(appRoot, "extensions", "theme-symbols", "src", "symbol-icon-theme.json");
+    if (!fs.existsSync(themeJsonPath)) {
+      return;
+    }
+    const content = fs.readFileSync(themeJsonPath, "utf8");
+    const json = JSON.parse(content);
+    let changed = false;
+    if (!json.fileExtensions) {
+      json.fileExtensions = {};
+    }
+    for (const ext of ["feature", "features", "story"]) {
+      if (json.fileExtensions[ext] !== "cucumber") {
+        json.fileExtensions[ext] = "cucumber";
+        changed = true;
+      }
+    }
+    if (!json.languageIds) {
+      json.languageIds = {};
+    }
+    for (const lang of ["gherkin", "cucumber", "behave", "feature"]) {
+      if (json.languageIds[lang] !== "cucumber") {
+        json.languageIds[lang] = "cucumber";
+        changed = true;
+      }
+    }
+    if (changed) {
+      fs.writeFileSync(themeJsonPath, JSON.stringify(json, null, 2), "utf8");
+      LOG.info("Updated Antigravity IDE symbol-icon-theme.json with Cucumber icon mappings.");
+    }
+  } catch (err) {
+    LOG.warn("Could not patch symbol-icon-theme.json: " + String(err));
+  }
+}
+
 let isActivated = false;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
@@ -50,6 +92,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   LOG.info("Smart Cucumber-Behave extension activating...");
 
   try {
+    ensureAntigravityIdeSymbolIconTheme();
+
     // 0. Start Official Cucumber Language Server
     await activateCucumberLanguageServer(context);
 
