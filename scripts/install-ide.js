@@ -28,10 +28,9 @@ if (!ideCli) {
   ideCli = 'code';
 }
 
-const vsixFiles = [
-  path.join(rootDir, `smart-cucumber-behave-openvsx-${version}.vsix`),
-  path.join(rootDir, `smart-cucumber-behave-vscode-${version}.vsix`)
-];
+const openvsxVsix = path.join(rootDir, `smart-cucumber-behave-openvsx-${version}.vsix`);
+const vscodeVsix = path.join(rootDir, `smart-cucumber-behave-vscode-${version}.vsix`);
+const vsixFiles = fs.existsSync(openvsxVsix) ? [openvsxVsix] : (fs.existsSync(vscodeVsix) ? [vscodeVsix] : []);
 
 for (const vsix of vsixFiles) {
   if (fs.existsSync(vsix)) {

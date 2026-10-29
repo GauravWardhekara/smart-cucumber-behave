@@ -85,10 +85,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     featureStepIndex.registerWatcher(context);
 
     const featureSelector: vscode.DocumentSelector = [
-      { language: "cucumber", scheme: "file" },
-      { language: "behave", scheme: "file" },
-      { language: "feature", scheme: "file" },
-      { language: "gherkin", scheme: "file" },
+      { language: "gherkin" },
+      { language: "cucumber" },
+      { language: "behave" },
+      { language: "feature" },
       { pattern: "**/*.feature" },
     ];
     const pythonSelector: vscode.DocumentSelector = [

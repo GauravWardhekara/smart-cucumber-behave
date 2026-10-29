@@ -609,7 +609,7 @@ Feature: Maximo REST API Verification
   // 21. Verify Cucumber-Behave Tab in Activity Bar & 3-Tab Architecture & Allure Reports
   console.log("\n--- Verifying Activity Bar Placement, 3-Tab Layout & Allure Reports ---");
   const pkgContent = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
-  assert(pkgContent.version === "1.1.2", `package.json version is 1.1.2 (actual: ${pkgContent.version})`);
+  assert(pkgContent.version === "1.1.3", `package.json version is 1.1.3 (actual: ${pkgContent.version})`);
   assert(pkgContent.bugs?.url === "https://github.com/GauravWardhekara/smart-cucumber-behave/issues", "package.json has issue reporting url");
   assert(pkgContent.contributes.viewsContainers?.activitybar?.length > 0, "contributes.viewsContainers.activitybar exists");
   assert(
@@ -910,6 +910,17 @@ Feature: Maximo REST API Verification
   assert(iconThemeData.fileExtensions?.feature, "iconTheme maps feature extension to icon");
   assert(iconThemeData.languageIds?.gherkin, "iconTheme maps gherkin languageId to icon");
   console.log("ALL FILE ASSOCIATION & AGENT CONTEXT ICON CHECKS PASSED!");
+
+  // 25. Verify Formatting Provider Registration & Default Formatter Configuration
+  console.log("\n--- Verifying Formatter Registration & Configuration for Cucumber Gherkin ---");
+  assert(pkgContent.activationEvents?.includes("onLanguage:feature"), "activationEvents includes onLanguage:feature");
+  assert(pkgContent.activationEvents?.includes("onLanguage:gherkin"), "activationEvents includes onLanguage:gherkin");
+  assert(pkgContent.contributes.configurationDefaults["[feature]"]?.["editor.defaultFormatter"], "configurationDefaults contributes defaultFormatter for [feature]");
+  assert(pkgContent.contributes.configurationDefaults["[gherkin]"]?.["editor.defaultFormatter"], "configurationDefaults contributes defaultFormatter for [gherkin]");
+  const extensionTsContent = fs.readFileSync(path.resolve(__dirname, "../src/extension.ts"), "utf-8");
+  assert(extensionTsContent.includes('{ language: "feature" }'), "featureSelector includes { language: 'feature' } without scheme restriction");
+  assert(extensionTsContent.includes('{ language: "gherkin" }'), "featureSelector includes { language: 'gherkin' } without scheme restriction");
+  console.log("ALL FORMATTER REGISTRATION & CONFIGURATION CHECKS PASSED!");
 
 
   console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");

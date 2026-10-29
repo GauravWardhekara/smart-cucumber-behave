@@ -3,7 +3,7 @@
   "publisher": "GauravWardhekar",
   "description": "Comprehensive Cucumber & Behave support for VS Code: Official Cucumber Language Server (multilingual step definitions, autocomplete, diagnostics, formatting) + Smart Behave Runner (Test Explorer, Live Run panel, CodeLens, Interactive Configuration).",
   "displayName": "Smart Cucumber-Behave",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "license": "MIT",
   "author": "Gaurav Wardhekar <gauravwardhekar@gmail.com>",
   "contributors": [
@@ -39,6 +39,10 @@
   ],
   "icon": "./data/logo.png",
   "activationEvents": [
+    "onLanguage:gherkin",
+    "onLanguage:cucumber",
+    "onLanguage:behave",
+    "onLanguage:feature",
     "workspaceContains:**/*.feature",
     "onStartupFinished"
   ],
@@ -383,15 +387,19 @@
         "*.feature": "gherkin"
       },
       "[cucumber]": {
+        "editor.defaultFormatter": "GauravWardhekar.smart-cucumber-behave",
         "editor.semanticHighlighting.enabled": true
       },
       "[behave]": {
+        "editor.defaultFormatter": "GauravWardhekar.smart-cucumber-behave",
         "editor.semanticHighlighting.enabled": true
       },
       "[gherkin]": {
+        "editor.defaultFormatter": "GauravWardhekar.smart-cucumber-behave",
         "editor.semanticHighlighting.enabled": true
       },
       "[feature]": {
+        "editor.defaultFormatter": "GauravWardhekar.smart-cucumber-behave",
         "editor.semanticHighlighting.enabled": true
       },
       "editor.semanticTokenColorCustomizations": {

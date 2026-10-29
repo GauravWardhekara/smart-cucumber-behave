@@ -24,6 +24,14 @@ function packageForPublisher(publisher, outName) {
 
   const currentPkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   currentPkg.publisher = publisher;
+  const extId = `${publisher}.smart-cucumber-behave`;
+  if (currentPkg.contributes?.configurationDefaults) {
+    for (const lang of ['[feature]', '[gherkin]', '[cucumber]', '[behave]']) {
+      if (currentPkg.contributes.configurationDefaults[lang]) {
+        currentPkg.contributes.configurationDefaults[lang]['editor.defaultFormatter'] = extId;
+      }
+    }
+  }
   fs.writeFileSync(pkgPath, JSON.stringify(currentPkg, null, 2) + '\n');
 
   try {
