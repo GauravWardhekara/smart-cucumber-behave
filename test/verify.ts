@@ -94,6 +94,7 @@ import { computeFeatureSemanticTokenSpans } from "../src/core/featureSemanticTok
 import { computeFeatureFormatLineEdits } from "../src/core/featureFormat";
 import { escapeBehaveNameSelect } from "../src/core/behaveNameSelect";
 import { formatAgentChatPrompt } from "../src/ui/agentChatPrompt";
+import { settings } from "../src/settings";
 
 function assert(condition: boolean, msg: string) {
   if (!condition) {
@@ -667,7 +668,7 @@ Feature: Maximo REST API Verification
   // 21. Verify Cucumber-Behave Tab in Activity Bar & 3-Tab Architecture & Allure Reports
   console.log("\n--- Verifying Activity Bar Placement, 3-Tab Layout & Allure Reports ---");
   const pkgContent = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
-  assert(pkgContent.version === "1.1.3", `package.json version is 1.1.3 (actual: ${pkgContent.version})`);
+  assert(pkgContent.version === "1.1.4", `package.json version is 1.1.4 (actual: ${pkgContent.version})`);
   assert(pkgContent.bugs?.url === "https://github.com/GauravWardhekara/smart-cucumber-behave/issues", "package.json has issue reporting url");
   assert(pkgContent.contributes.viewsContainers?.activitybar?.length > 0, "contributes.viewsContainers.activitybar exists");
   assert(
@@ -979,6 +980,42 @@ Feature: Maximo REST API Verification
   assert(extensionTsContent.includes('{ language: "feature" }'), "featureSelector includes { language: 'feature' } without scheme restriction");
   assert(extensionTsContent.includes('{ language: "gherkin" }'), "featureSelector includes { language: 'gherkin' } without scheme restriction");
   console.log("ALL FORMATTER REGISTRATION & CONFIGURATION CHECKS PASSED!");
+
+  // 26. Verify Consolidated Settings Architecture
+  console.log("\n--- Verifying Consolidated Extension Settings ---");
+  const configSections = pkgContent.contributes.configuration;
+  assert(Array.isArray(configSections) && configSections.length === 3, "Exactly 3 configuration sections contributed");
+  
+  const runnerSection = configSections.find((c: any) => c.title.includes("Runner & Execution"));
+  assert(runnerSection, "Runner & Execution configuration section exists");
+  
+  const props = Object.keys(runnerSection.properties);
+  assert(props.every((p: string) => p.startsWith("smartBehave.")), "All runner properties consolidated under 'smartBehave.*' namespace");
+  assert(!props.some((p: string) => p.startsWith("behave.")), "Redundant 'behave.*' properties removed from package.json");
+  assert(!props.some((p: string) => p.startsWith("behaveRunner.")), "Redundant 'behaveRunner.*' properties removed from package.json");
+  assert(props.includes("smartBehave.configDirectory"), "Contributes canonical 'smartBehave.configDirectory'");
+  assert(props.includes("smartBehave.defaultConfigFile"), "Contributes canonical 'smartBehave.defaultConfigFile'");
+  assert(props.includes("smartBehave.featureFiles.patterns"), "Contributes 'smartBehave.featureFiles.patterns'");
+  assert(props.includes("smartBehave.stepDefinitions.patterns"), "Contributes 'smartBehave.stepDefinitions.patterns'");
+  assert(props.includes("smartBehave.allowedFiles"), "Contributes 'smartBehave.allowedFiles'");
+  assert(props.includes("smartBehave.autoDiscover"), "Contributes 'smartBehave.autoDiscover'");
+  assert(props.includes("smartBehave.codeLens"), "Contributes 'smartBehave.codeLens'");
+  assert(props.includes("smartBehave.arguments"), "Contributes 'smartBehave.arguments'");
+  assert(props.includes("smartBehave.extraArgs"), "Contributes 'smartBehave.extraArgs'");
+  assert(props.includes("smartBehave.debug.justMyCode"), "Contributes 'smartBehave.debug.justMyCode'");
+  assert(props.includes("smartBehave.livePanel.enabled"), "Contributes 'smartBehave.livePanel.enabled'");
+  assert(props.includes("smartBehave.diffRegex"), "Contributes 'smartBehave.diffRegex'");
+  assert(props.includes("smartBehave.diagnostics.suppressDuplicateBehaveWarnings"), "Contributes 'smartBehave.diagnostics.suppressDuplicateBehaveWarnings'");
+  
+  // Verify typed settings module retains fallback support for backward compatibility
+  const { settings } = require("../src/settings");
+  assert(typeof settings.arguments === "function", "settings.arguments accessible");
+  assert(typeof settings.extraArgs === "function", "settings.extraArgs accessible");
+  assert(typeof settings.configDirectory === "function", "settings.configDirectory accessible");
+  assert(typeof settings.defaultConfigFile === "function", "settings.defaultConfigFile accessible");
+  assert(typeof settings.suppressDuplicateBehaveWarnings === "function", "settings.suppressDuplicateBehaveWarnings accessible");
+  console.log("ALL CONSOLIDATED SETTINGS VERIFICATION CHECKS PASSED!");
+
 
 
   console.log("ALL CAPS DROPDOWN, FEATURE DISCOVERY & MAIN SCREEN VERIFICATION CHECKS PASSED!");

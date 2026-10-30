@@ -193,46 +193,44 @@ export class SmartBehaveConfigPanel {
         : vscode.ConfigurationTarget.Global;
 
     const smartConfig = vscode.workspace.getConfiguration("smartBehave");
-    const behaveConfig = vscode.workspace.getConfiguration("behave");
     const cucumberConfig = vscode.workspace.getConfiguration("cucumber");
 
-    const updateBoth = async (key: string, val: any) => {
+    const updateSetting = async (key: string, val: any) => {
       await smartConfig.update(key, val, target);
-      await behaveConfig.update(key, val, target);
     };
 
     // 1. Runner & Behave settings
     if (newSettings.allowedFiles !== undefined) {
-      await updateBoth("allowedFiles", newSettings.allowedFiles);
+      await updateSetting("allowedFiles", newSettings.allowedFiles);
     }
     if (newSettings.configDirectory !== undefined) {
-      await updateBoth("configDirectory", String(newSettings.configDirectory).trim());
+      await updateSetting("configDirectory", String(newSettings.configDirectory).trim());
     }
     if (newSettings.defaultConfigFile !== undefined) {
-      await updateBoth("defaultConfigFile", String(newSettings.defaultConfigFile).trim());
+      await updateSetting("defaultConfigFile", String(newSettings.defaultConfigFile).trim());
     }
     if (newSettings.autoDiscover !== undefined) {
-      await updateBoth("autoDiscover", Boolean(newSettings.autoDiscover));
+      await updateSetting("autoDiscover", Boolean(newSettings.autoDiscover));
     }
     if (newSettings.codeLens !== undefined) {
-      await updateBoth("codeLens", Boolean(newSettings.codeLens));
+      await updateSetting("codeLens", Boolean(newSettings.codeLens));
     }
     if (newSettings.justMyCode !== undefined) {
-      await updateBoth("debug.justMyCode", Boolean(newSettings.justMyCode));
+      await updateSetting("debug.justMyCode", Boolean(newSettings.justMyCode));
     }
     if (newSettings.arguments !== undefined) {
       const args = String(newSettings.arguments)
         .split(" ")
         .map((s) => s.trim())
         .filter(Boolean);
-      await updateBoth("arguments", args);
+      await updateSetting("arguments", args);
     }
     if (newSettings.extraArgs !== undefined) {
       const extra = String(newSettings.extraArgs)
         .split(" ")
         .map((s) => s.trim())
         .filter(Boolean);
-      await updateBoth("extraArgs", extra);
+      await updateSetting("extraArgs", extra);
     }
 
     // 2. Custom Gherkin Formatter settings

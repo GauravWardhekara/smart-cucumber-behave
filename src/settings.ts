@@ -64,6 +64,11 @@ export const settings = {
   livePanelEnabled: setting<boolean>("livePanel.enabled", undefined, true),
   configDirectory: setting<string>("configDirectory", "configDirectory", "configs"),
   defaultConfigFile: setting<string>("defaultConfigFile", "defaultConfigFile", ""),
+  suppressDuplicateBehaveWarnings: setting<boolean>(
+    "diagnostics.suppressDuplicateBehaveWarnings",
+    undefined,
+    true
+  ),
 
   // Custom Gherkin Formatter Settings
   formatting: {

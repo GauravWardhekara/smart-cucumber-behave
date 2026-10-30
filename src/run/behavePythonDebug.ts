@@ -4,39 +4,24 @@ import { escapeBehaveNameSelect } from "../core";
 import type { BehaveJob } from "./behaveJobTypes";
 import { getLaunchJsonSmartBehaveArgs } from "./behaveLaunchConfig";
 import { applyCapsFileArg, detectBehaveProjectConfig } from "./behaveConfigFile";
+import { settings } from "../settings";
 
 export function getJustMyCodeForResource(resourcePath: string): boolean {
-  const resourceUri = vscode.Uri.file(resourcePath);
-  const cfg = vscode.workspace.getConfiguration("behave", resourceUri);
-  const val = cfg.get<boolean>("debug.justMyCode");
-  if (val !== undefined && val !== null) {
-    return val;
-  }
-  return vscode.workspace
-    .getConfiguration("behaveRunner", resourceUri)
-    .get<boolean>("debug.justMyCode", true);
+  return settings.justMyCode(resourcePath);
 }
 
-/** User-supplied behave CLI tokens from `behave.extraArgs`, `behaveRunner.behave.extraArgs`, or `launch.json`. */
+/** User-supplied behave CLI tokens from `smartBehave.extraArgs`, `behave.extraArgs`, `behaveRunner.behave.extraArgs`, or `launch.json`. */
 export function getBehaveExtraArgsForResource(
   resourcePath: string,
   capsFile?: string
 ): string[] {
   const resourceUri = vscode.Uri.file(resourcePath);
-  const cfg = vscode.workspace.getConfiguration("behave", resourceUri);
-  let args = cfg.get<string[]>("extraArgs");
+  let args = settings.extraArgs(resourceUri);
   const folder = vscode.workspace.getWorkspaceFolder(resourceUri);
   const root = folder ? folder.uri.fsPath : path.dirname(resourcePath);
 
   if (!Array.isArray(args) || args.length === 0) {
-    const raw = vscode.workspace
-      .getConfiguration("behaveRunner", resourceUri)
-      .get<unknown>("behave.extraArgs", []);
-    if (Array.isArray(raw) && raw.length > 0) {
-      args = raw.filter((item): item is string => typeof item === "string");
-    } else {
-      args = getLaunchJsonSmartBehaveArgs(root);
-    }
+    args = getLaunchJsonSmartBehaveArgs(root);
   }
 
   // Incorporate settings from project behave.ini / .behaverc if present

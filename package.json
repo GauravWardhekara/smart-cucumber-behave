@@ -3,7 +3,7 @@
   "publisher": "GauravWardhekar",
   "description": "Comprehensive Cucumber & Behave support for VS Code: Official Cucumber Language Server (multilingual step definitions, autocomplete, diagnostics, formatting) + Smart Behave Runner (Test Explorer, Live Run panel, CodeLens, Interactive Configuration).",
   "displayName": "Smart Cucumber-Behave",
-  "version": "1.1.3",
+  "version": "1.1.4",
   "license": "MIT",
   "author": "Gaurav Wardhekar <gauravwardhekar@gmail.com>",
   "contributors": [
@@ -962,13 +962,8 @@
     ],
     "configuration": [
       {
-        "title": "Smart Behave Runner",
+        "title": "Smart Cucumber-Behave: Runner & Execution",
         "properties": {
-          "smartBehave.allowedFiles": {
-            "type": "string",
-            "default": "**/*.feature",
-            "description": "Glob pattern matching allowed feature files"
-          },
           "smartBehave.featureFiles.patterns": {
             "type": "array",
             "items": {
@@ -992,6 +987,11 @@
             ],
             "description": "Glob patterns for Python files containing step definitions"
           },
+          "smartBehave.allowedFiles": {
+            "type": "string",
+            "default": "**/*.feature",
+            "description": "Glob pattern matching allowed feature files"
+          },
           "smartBehave.autoDiscover": {
             "type": "boolean",
             "default": true,
@@ -1000,7 +1000,7 @@
           "smartBehave.codeLens": {
             "type": "boolean",
             "default": false,
-            "description": "Whether or not to enable in-editor CodeLens (Run/Debug above features and scenarios). Disabled by default to avoid duplicate buttons next to native Test Explorer gutter icons"
+            "description": "Whether or not to enable in-editor CodeLens (Run/Debug above features and scenarios)"
           },
           "smartBehave.arguments": {
             "type": "array",
@@ -1020,6 +1020,16 @@
             },
             "default": [],
             "description": "Extra arguments passed to behave on every run and debug launch (e.g. \"--tags=@wip\", \"--define=env=staging\")"
+          },
+          "smartBehave.configDirectory": {
+            "type": "string",
+            "default": "configs",
+            "description": "Directory path (relative to the workspace root) where configuration/capabilities files are stored."
+          },
+          "smartBehave.defaultConfigFile": {
+            "type": "string",
+            "default": "",
+            "description": "Default configuration file (relative path) to pass to Behave for the caps_file argument. If not configured, Smart Behave will prompt you to choose a configuration file when running tests."
           },
           "smartBehave.debug.justMyCode": {
             "type": "boolean",
@@ -1045,144 +1055,11 @@
             "type": "boolean",
             "default": true,
             "description": "Suppress redundant Behave undefined-step warnings when the Cucumber Language Server diagnostics are active to prevent duplicate warnings."
-          },
-          "behave.allowedFiles": {
-            "type": "string",
-            "default": "**/*.feature",
-            "description": "Glob pattern matching allowed feature files"
-          },
-          "behave.featureFiles.patterns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "**/*.feature"
-            ],
-            "description": "Glob patterns for Gherkin feature files"
-          },
-          "behave.stepDefinitions.patterns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "**/steps/**/*.py",
-              "**/*_steps.py",
-              "**/step_*.py",
-              "**/steps.py"
-            ],
-            "description": "Glob patterns for Python files containing step definitions"
-          },
-          "behave.autoDiscover": {
-            "type": "boolean",
-            "default": true,
-            "description": "Whether or not to discover all tests on startup"
-          },
-          "behave.codeLens": {
-            "type": "boolean",
-            "default": false,
-            "description": "Whether or not to enable in-editor CodeLens (Run/Debug above features and scenarios). Disabled by default to avoid duplicate buttons next to native Test Explorer gutter icons"
-          },
-          "behave.arguments": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "-f",
-              "pretty"
-            ],
-            "description": "Additional command line arguments to pass to behave"
-          },
-          "behave.extraArgs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [],
-            "description": "Extra arguments passed to behave on every run and debug launch (e.g. \"--tags=@wip\", \"--define=env=staging\")"
-          },
-          "behave.debug.justMyCode": {
-            "type": "boolean",
-            "default": true,
-            "description": "Only debug user code when running Behave in debug mode (debugpy)"
-          },
-          "behave.livePanel.enabled": {
-            "type": "boolean",
-            "default": true,
-            "description": "Whether or not to enable the Live run webview panel"
-          },
-          "behave.diffRegex": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "Expected: (?<expected>.*)[\\s\\S]*but: was (?<actual>.*)"
-            ],
-            "description": "Regular Expressions to match failed runs against. Should have two groups: expected and actual"
-          },
-          "behave.configDirectory": {
-            "type": "string",
-            "default": "configs",
-            "description": "Directory path (relative to the workspace root) where configuration/capabilities files are stored."
-          },
-          "behave.defaultConfigFile": {
-            "type": "string",
-            "default": "",
-            "description": "Default configuration file (relative path) to pass to Behave for the 'caps_file' argument. If not configured, Smart Behave will prompt you to choose a configuration file when running tests."
-          },
-          "behaveRunner.debug.justMyCode": {
-            "type": "boolean",
-            "default": true,
-            "description": "Alias for behave.debug.justMyCode"
-          },
-          "behaveRunner.behave.extraArgs": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [],
-            "description": "Alias for behave.extraArgs"
-          },
-          "behaveRunner.stepDefinitions.patterns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "**/steps/**/*.py",
-              "**/*_steps.py",
-              "**/step_*.py",
-              "**/steps.py"
-            ],
-            "description": "Alias for behave.stepDefinitions.patterns"
-          },
-          "behaveRunner.featureFiles.patterns": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [
-              "**/*.feature"
-            ],
-            "description": "Alias for behave.featureFiles.patterns"
-          },
-          "behaveRunner.configDirectory": {
-            "type": "string",
-            "default": "configs",
-            "description": "Alias for behave.configDirectory"
-          },
-          "behaveRunner.defaultConfigFile": {
-            "type": "string",
-            "default": "",
-            "description": "Alias for behave.defaultConfigFile"
           }
         }
       },
       {
-        "title": "Cucumber",
+        "title": "Smart Cucumber-Behave: Official Cucumber Language Server",
         "properties": {
           "cucumber.features": {
             "markdownDescription": "The `cucumber.features` setting overrides where the extension\nshould look for `.feature` files.\n\nIf no feature files are found, [autocomplete](#autocomplete)\nwill not work.\n\nDefault value:\n\n```json\n{\n  \"cucumber.features\": [\n    \"src/test/**/*.feature\",\n    \"features/**/*.feature\",\n    \"tests/**/*.feature\",\n    \"*specs*/**/*.feature\"\n  ]\n}\n```",

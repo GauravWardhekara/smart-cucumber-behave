@@ -8,3 +8,10 @@ _behave_runner/
 _cucumber_ref/
 __pycache__/
 *.pyc
+
+.codegraph/
+.projectmem/
+.github/context-mode/
+.projectmem/watch.pid
+.projectmem/watch.log
+.projectmem/structure.json

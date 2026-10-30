@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import { analyzeFeatureDocument } from "../core/featureSemanticTokens";
 import { stepDefinitionIndex } from "./stepIndex";
+import { settings } from "../settings";
 
 export class BehaveDiagnosticsManager {
   private diagnosticCollection: vscode.DiagnosticCollection;
@@ -44,9 +45,7 @@ export class BehaveDiagnosticsManager {
   }
 
   updateDiagnostics(document: vscode.TextDocument): void {
-    const suppressDuplicates = vscode.workspace
-      .getConfiguration("smartBehave")
-      .get<boolean>("diagnostics.suppressDuplicateBehaveWarnings", true);
+    const suppressDuplicates = settings.suppressDuplicateBehaveWarnings(document.uri);
     if (suppressDuplicates) {
       this.diagnosticCollection.delete(document.uri);
       return;

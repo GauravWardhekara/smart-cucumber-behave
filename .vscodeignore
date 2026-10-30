@@ -1,6 +1,9 @@
 .gitignore
 .vscode
 .github
+.codegraph/**
+.projectmem/**
+*.vsix
 _simplytest/**
 _behave_runner/**
 
