@@ -12,7 +12,12 @@ import {
   parseLiveStreamLine
 } from "./behaveLiveStreamParse";
 import type { LiveStreamJob } from "./behaveLiveStreamTypes";
-import { getBehaveRunnerContext } from "./behaveRunnerContext";
+import {
+  getBehaveRunnerContext,
+  isCurrentBehaveLiveSession,
+  nextBehaveLiveSessionId,
+  type BehaveRunSinks
+} from "./behaveRunnerContext";
 import { revealLiveRunPanel } from "../ui/liveRunWebview";
 import type { LivePanelToWebviewMessage } from "../ui/livePanelProtocol";
 import { getPythonInterpreterPath } from "../utils/python";
@@ -27,11 +32,6 @@ import {
   takeOverActiveRunCancellation,
   unregisterTrackedBehaveSpawn
 } from "./behaveRunCancellation";
-import {
-  isCurrentBehaveLiveSession,
-  nextBehaveLiveSessionId
-} from "./behaveRunSession";
-import type { BehaveRunSinks } from "./behaveRunPorts";
 import { runBehaveDebugJobs } from "./behaveRunDebug";
 import { rememberBehaveRun } from "./behaveRunLastRun";
 import { normalizeToCrlfChunk } from "../utils/normalizeCrlf";

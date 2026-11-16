@@ -210,17 +210,31 @@ function buildBehavePatternRegexBody(
  * @param pattern The Behave pattern string (e.g., "the number is {n:d}")
  * @returns A RegExp that matches step text (including Scenario Outline placeholders)
  */
+const patternRegexCache = new Map<string, RegExp>();
+const patternCaptureRegexCache = new Map<string, RegExp>();
+
 export function behavePatternToRegex(pattern: string): RegExp {
-  return new RegExp(`^${buildBehavePatternRegexBody(pattern, false)}$`, "i");
+  let cached = patternRegexCache.get(pattern);
+  if (!cached) {
+    cached = new RegExp(`^${buildBehavePatternRegexBody(pattern, false)}$`, "i");
+    if (patternRegexCache.size > 2000) {
+      patternRegexCache.clear();
+    }
+    patternRegexCache.set(pattern, cached);
+  }
+  return cached;
 }
 
-/**
- * Same as {@link behavePatternToRegex} but each `{placeholder}` becomes a named capture
- * (`p0`, `p1`, …) so match indices can be mapped to `.feature` step text for highlighting.
- * Uses the `d` flag (requires ES2022 / modern Node).
- */
 export function behavePatternToCaptureRegex(pattern: string): RegExp {
-  return new RegExp(`^${buildBehavePatternRegexBody(pattern, true)}$`, "id");
+  let cached = patternCaptureRegexCache.get(pattern);
+  if (!cached) {
+    cached = new RegExp(`^${buildBehavePatternRegexBody(pattern, true)}$`, "id");
+    if (patternCaptureRegexCache.size > 2000) {
+      patternCaptureRegexCache.clear();
+    }
+    patternCaptureRegexCache.set(pattern, cached);
+  }
+  return cached;
 }
 
 /**

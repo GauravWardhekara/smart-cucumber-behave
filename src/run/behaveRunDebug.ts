@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { resolveBehaveFeatureChildrenIfNeeded } from "./behaveHierarchyModel";
-import { getBehaveRunnerContext } from "./behaveRunnerContext";
+import { getBehaveRunnerContext, nextBehaveLiveSessionId } from "./behaveRunnerContext";
 import type { BehaveJob } from "./behaveJobTypes";
 import { getWorkspaceRootForFile } from "./behaveJobTypes";
 import {
@@ -14,7 +14,6 @@ import {
   buildPythonBehaveDebugLaunch,
   getJustMyCodeForResource
 } from "./behavePythonDebug";
-import { nextBehaveLiveSessionId } from "./behaveRunSession";
 import { promptOrResolveCapsFile } from "./behaveConfigFile";
 
 export async function runBehaveDebugJobs(

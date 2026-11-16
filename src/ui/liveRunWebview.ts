@@ -85,85 +85,16 @@ export function notifyActiveWebview(message: LivePanelToWebviewMessage): void {
   }
 }
 
-function cloneForCapture(message: unknown): unknown {
-  try {
-    return JSON.parse(JSON.stringify(message)) as unknown;
-  } catch {
-    return message;
-  }
-}
+const MAX_LIVE_CAPTURE_MESSAGES = 1000;
 
-function trimMessagesForStorage(messages: unknown[]): unknown[] {
-  return messages.map((msg) => {
-    if (!msg || typeof msg !== "object") {
-      return msg;
-    }
-    const o = msg as Record<string, unknown>;
-    const copy: Record<string, unknown> = { ...o };
-    if (typeof copy.logText === "string" && copy.logText.length > 8000) {
-      copy.logText =
-        copy.logText.slice(0, 8000) +
-        "\n… [Behave Runner: truncated for storage]";
-    }
-    if (typeof copy.error === "string" && copy.error.length > 16000) {
-      copy.error =
-        copy.error.slice(0, 16000) + "\n… [Behave Runner: truncated]";
-    }
-    if (typeof copy.text === "string" && copy.text.length > 12000) {
-      copy.text =
-        copy.text.slice(0, 12000) + "\n… [Behave Runner: truncated]";
-    }
-    return copy;
-  });
-}
-
-function shrinkCaptureIfNeeded(messages: unknown[]): unknown[] {
-  let data = trimMessagesForStorage(messages);
-  let json = JSON.stringify(data);
-  if (json.length <= MAX_CAPTURE_JSON_BYTES) {
-    return data;
+function appendLivePanelCapture(message: unknown): void {
+  if (livePanelCapture.length >= MAX_LIVE_CAPTURE_MESSAGES) {
+    livePanelCapture.shift();
   }
-  data = messages.map((msg) => {
-    if (!msg || typeof msg !== "object") {
-      return msg;
-    }
-    const o = msg as Record<string, unknown>;
-    const copy: Record<string, unknown> = { ...o };
-    if (typeof copy.logText === "string") {
-      copy.logText = `${copy.logText.slice(0, 400)}\n… [truncated]`;
-    }
-    if (typeof copy.error === "string") {
-      copy.error = `${copy.error.slice(0, 400)}\n… [truncated]`;
-    }
-    if (typeof copy.text === "string") {
-      copy.text = `${copy.text.slice(0, 400)}\n… [truncated]`;
-    }
-    return copy;
-  });
-  json = JSON.stringify(data);
-  while (json.length > MAX_CAPTURE_JSON_BYTES) {
-    const prevLen = data.length;
-    data = data.filter((m, i) => {
-      if (i === 0) {
-        return true;
-      }
-      return (
-        typeof m !== "object" ||
-        m === null ||
-        (m as { type?: string }).type !== "step_log_append"
-      );
-    });
-    if (data.length === prevLen) {
-      break;
-    }
-    json = JSON.stringify(data);
-  }
-  return data;
+  livePanelCapture.push(message);
 }
 
 function persistLivePanelCaptureNowImpl(): void {
-  // Stale console logs are never persisted across VS Code sessions to ensure the
-  // Execution tab opens instantly and starts cleanly without displaying outdated logs.
   const memento = workspaceStateForLivePanel;
   if (memento) {
     try {
@@ -179,7 +110,7 @@ function createLivePanelGateway(
 ): LiveRunPanelGateway {
   return {
     post(message: LivePanelToWebviewMessage): void {
-      livePanelCapture.push(cloneForCapture(message));
+      appendLivePanelCapture(message);
       postToWebview(message);
       if (CucumberBehaveMainScreenPanel.currentPanel) {
         void CucumberBehaveMainScreenPanel.currentPanel.panel.webview.postMessage(message);

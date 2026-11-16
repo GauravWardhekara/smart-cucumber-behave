@@ -1,11 +1,37 @@
 import * as vscode from "vscode";
 import type { BehaveHierarchyStore } from "./behaveHierarchyModel";
 import { appendRunOutput } from "./behaveRunOutput";
-import type { BehaveRunSinks } from "./behaveRunPorts";
 import {
   isLivePanelToWebviewMessage,
   type LivePanelToWebviewMessage
 } from "../ui/livePanelProtocol";
+
+/** Live run webview + capture persistence. */
+export interface LiveRunPanelSink {
+  post(message: LivePanelToWebviewMessage): void;
+  clear(): void;
+  persistCapture(): void;
+}
+
+export interface RunOutputSink {
+  append(text: string): void;
+}
+
+export interface BehaveRunSinks {
+  livePanel: LiveRunPanelSink;
+  output: RunOutputSink;
+}
+
+/** Monotonic id so stdout from a superseded Behave process cannot mutate the live panel. */
+let activeBehaveLiveSession = 0;
+
+export function nextBehaveLiveSessionId(): number {
+  return ++activeBehaveLiveSession;
+}
+
+export function isCurrentBehaveLiveSession(id: number): boolean {
+  return id === activeBehaveLiveSession;
+}
 
 /** Composition root: paths, hierarchy store, and run I/O sinks (set once from `activate`). */
 export interface BehaveRunnerContext {
