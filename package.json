@@ -3,7 +3,7 @@
   "publisher": "GauravWardhekar",
   "description": "Comprehensive Cucumber & Behave support for VS Code: Official Cucumber Language Server (multilingual step definitions, autocomplete, diagnostics, formatting) + Smart Behave Runner (Test Explorer, Live Run panel, CodeLens, Interactive Configuration).",
   "displayName": "Smart Cucumber-Behave",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "license": "MIT",
   "author": "Gaurav Wardhekar <gauravwardhekar@gmail.com>",
   "contributors": [
@@ -869,70 +869,6 @@
         "command": "smartBehave.refreshDiscovery",
         "title": "Cucumber-Behave: Refresh Feature Discovery",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "behave.run",
-        "title": "Behave: Run",
-        "icon": "$(run)"
-      },
-      {
-        "command": "behave.debug",
-        "title": "Behave: Debug",
-        "icon": "$(debug)"
-      },
-      {
-        "command": "behave.test",
-        "title": "Behave: Test",
-        "icon": "$(beaker)"
-      },
-      {
-        "command": "behave.analyze",
-        "title": "Behave: Load File",
-        "icon": "$(search)"
-      },
-      {
-        "command": "behave.discover",
-        "title": "Behave: Discover",
-        "icon": "$(search)"
-      },
-      {
-        "command": "behave.reset",
-        "title": "Behave: Reset",
-        "icon": "$(trash)"
-      },
-      {
-        "command": "behave.cancelRun",
-        "title": "Behave: Cancel Run",
-        "icon": "$(stop)"
-      },
-      {
-        "command": "behave.rerunLastRun",
-        "title": "Behave: Rerun Last Run",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "behave.showLiveRun",
-        "title": "Behave: Show Live Run Panel"
-      },
-      {
-        "command": "behave.debugScenario",
-        "title": "Behave: Debug Scenario"
-      },
-      {
-        "command": "behaveRunner.cancelRun",
-        "title": "Behave: Cancel Run"
-      },
-      {
-        "command": "behaveRunner.rerunLastRun",
-        "title": "Behave: Rerun Last Run"
-      },
-      {
-        "command": "behaveRunner.showLiveRun",
-        "title": "Behave: Show Live Run Panel"
-      },
-      {
-        "command": "behaveRunner.debugScenario",
-        "title": "Behave: Debug Scenario"
       },
       {
         "command": "smartBehave.formatCustomGherkin",

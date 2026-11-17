@@ -5,6 +5,7 @@ import { settings } from "../settings";
 
 export class BehaveDiagnosticsManager {
   private diagnosticCollection: vscode.DiagnosticCollection;
+  private debounceTimers = new Map<string, NodeJS.Timeout>();
 
   constructor() {
     this.diagnosticCollection = vscode.languages.createDiagnosticCollection("behave");
@@ -16,7 +17,7 @@ export class BehaveDiagnosticsManager {
     context.subscriptions.push(
       vscode.workspace.onDidChangeTextDocument((e) => {
         if (e.document.languageId === "feature" || e.document.fileName.endsWith(".feature")) {
-          this.updateDiagnostics(e.document);
+          this.scheduleUpdateDiagnostics(e.document);
         }
       }),
       vscode.workspace.onDidOpenTextDocument((doc) => {
@@ -25,23 +26,44 @@ export class BehaveDiagnosticsManager {
         }
       }),
       vscode.workspace.onDidCloseTextDocument((doc) => {
+        const key = doc.uri.toString();
+        const timer = this.debounceTimers.get(key);
+        if (timer) {
+          clearTimeout(timer);
+          this.debounceTimers.delete(key);
+        }
         this.diagnosticCollection.delete(doc.uri);
       })
     );
 
-    stepDefinitionIndex.onDidChange(() => {
-      for (const doc of vscode.workspace.textDocuments) {
-        if (doc.languageId === "feature" || doc.fileName.endsWith(".feature")) {
-          this.updateDiagnostics(doc);
+    context.subscriptions.push(
+      stepDefinitionIndex.onDidChange(() => {
+        for (const doc of vscode.workspace.textDocuments) {
+          if (doc.languageId === "feature" || doc.fileName.endsWith(".feature")) {
+            this.scheduleUpdateDiagnostics(doc);
+          }
         }
-      }
-    });
+      })
+    );
 
     for (const doc of vscode.workspace.textDocuments) {
       if (doc.languageId === "feature" || doc.fileName.endsWith(".feature")) {
         this.updateDiagnostics(doc);
       }
     }
+  }
+
+  scheduleUpdateDiagnostics(document: vscode.TextDocument): void {
+    const key = document.uri.toString();
+    const existing = this.debounceTimers.get(key);
+    if (existing) {
+      clearTimeout(existing);
+    }
+    const timer = setTimeout(() => {
+      this.debounceTimers.delete(key);
+      this.updateDiagnostics(document);
+    }, 250);
+    this.debounceTimers.set(key, timer);
   }
 
   updateDiagnostics(document: vscode.TextDocument): void {

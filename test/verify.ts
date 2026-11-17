@@ -668,7 +668,7 @@ Feature: Maximo REST API Verification
   // 21. Verify Cucumber-Behave Tab in Activity Bar & 3-Tab Architecture & Allure Reports
   console.log("\n--- Verifying Activity Bar Placement, 3-Tab Layout & Allure Reports ---");
   const pkgContent = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
-  assert(pkgContent.version === "1.1.4", `package.json version is 1.1.4 (actual: ${pkgContent.version})`);
+  assert(pkgContent.version === "1.1.5", `package.json version is 1.1.5 (actual: ${pkgContent.version})`);
   assert(pkgContent.bugs?.url === "https://github.com/GauravWardhekara/smart-cucumber-behave/issues", "package.json has issue reporting url");
   assert(pkgContent.contributes.viewsContainers?.activitybar?.length > 0, "contributes.viewsContainers.activitybar exists");
   assert(
